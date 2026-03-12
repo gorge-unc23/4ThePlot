@@ -25,8 +25,8 @@
 ## 3. The Admin Role
 | ID | Title | User Story |
 | :--- | :--- | :--- |
-| ADM-01 | Report Processing | As an Admin, I want to access a prioritized queue of reported content so that I can quickly address harassment or illegal event listings to keep users safe. |
+| ADM-01 | Report Processing | As an Admin, I want to access reported content so that I can quickly address harassment or illegal event listings to keep users safe. |
 | ADM-02 | Verification Badge Issuance | As an Admin, I want to assign verified status to trusted professional organizers so that users know which events are officially sanctioned and low-risk. |
-| ADM-03 | Global Banner Announcements | As an Admin, I want to push a system-wide banner notification so that I can inform all users about scheduled maintenance or major platform updates. |
+| ADM-03 | Global Banner Announcements | As an Admin, I want to push a system-wide notification so that I can inform all users about scheduled maintenance or major platform updates. |
 | ADM-04 | Dispute Resolution | As an Admin, I want to access the chat logs between an Organizer and a Goer so that I can fairly resolve conflicts or refund requests based on evidence. |
 | ADM-05 | Revenue and Growth Monitoring | As an Admin, I want to view a dashboard of daily active users and new event creations so that I can track the platform's growth and identify marketing needs. |
