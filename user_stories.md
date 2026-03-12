@@ -1,6 +1,7 @@
 # EventApp: Project Requirements and User Stories
 
-## 1. The Organizer Role
+## 1. The Organizer Role 
+The organizer can be either an indvidual or a business.
 | ID | Title | User Story |
 | :--- | :--- | :--- |
 | ORG-01 | Detailed Event Drafting | As an Organizer, I want to save an event as a draft so that I can refine the details before making it visible to the public. |
@@ -12,6 +13,7 @@
 ---
 
 ## 2. The Goer Role
+The Goer/ participant is logged in on a personal account (as an individual). They can also organize events.
 | ID | Title | User Story |
 | :--- | :--- | :--- |
 | GO-01 | Personalized Discovery | As a Goer, I want to follow specific event categories that match my personal hobbies. |
@@ -30,3 +32,14 @@
 | ADM-03 | Global Banner Announcements | As an Admin, I want to push a system-wide notification so that I can inform all users about scheduled maintenance or major platform updates. |
 | ADM-04 | Dispute Resolution | As an Admin, I want to access the chat logs between an Organizer and a Goer so that I can fairly resolve conflicts or refund requests based on evidence. |
 | ADM-05 | Revenue and Growth Monitoring | As an Admin, I want to view a dashboard of daily active users and new event creations so that I can track the platform's growth and identify marketing needs. |
+
+---
+
+## 4. The Business Role
+| ID | Title | User Story |
+| :--- | :--- | :--- |
+| BIZ-01 | Sponsored Event Placement | As a Business, I want to pay for promoted placement so that my events appear at the top of the discovery feed for a specific demographic. |
+| BIZ-02 | Brand Profile Customization | As a Business, I want to create a verified brand profile with links to my website and social media so that I can build a long-term following on the platform. |
+| BIZ-03 | Lead Generation Tools | As a Business, I want to offer digital coupons or downloadable resources to attendees so that I can convert event interest into measurable sales leads. |
+| BIZ-04 | Vendor Partnership Requests | As a Business, I want to tag other organizers as partners so that we can co-host events and cross-promote to each other's audiences. |
+| BIZ-05 | ROI Performance Dashboard | As a Business, I want to track conversion rates from ad spend to actual ticket joins so that I can optimize my marketing budget on the platform. |
