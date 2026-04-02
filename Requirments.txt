@@ -1,0 +1,27 @@
+•	User Scenarios List 
+•	User Scenarios Extended
+•	User Cases
+•	Use Case Diagrams
+•	Functional Requirements
+•	Non-Functional Requirements
+
+User Scenario: Describes the context, motivation, and "what" the user is doing (e.g., "returning customer... wants to apply coupon").
+Use Case: Defines the "how" the system interacts to satisfy that goal, including the detailed steps and potential exceptions (e.g., "validates the coupon code").
+User Scenarios List - short description of all the user scenarios
+User Scenarios Extended - related with items of the list and includes steps to reach the desired output
+
+A use case diagram is a Unified Modeling Language (UML) behavioral diagram that visually represents how users (actors) interact with a system to achieve specific goals.
+
+Key Elements of a Use Case Diagram:
+Actor: A person, organization, or external system that interacts with the system, often shown as a stick figure.
+Use Case: A specific function or action the system performs, typically represented by a labeled oval (e.g., "Login," "Place Order").
+System Boundary: A rectangle indicating the scope of the system, with actors outside and use cases inside.
+Relationships: Lines connecting actors to use cases or defining relationships between use cases, such as include (required), extend (optional), or generalization (inheritance).
+
+Types of Requirements we need to write
+FUNCTIONAL:
+Statements of services the system should provide, how the system should react to particular inputs and how the system should behave in particular situations.
+May state what the system should not do
+NON FUNCTIONAL :
+-Constraints on the services or functions offered by the system such as timing constraints, constraints on the development process, standards, etc.
+Often apply to the system as a whole rather than individual features or services.
