@@ -51,7 +51,8 @@ class MyApp extends StatelessWidget {
             foregroundColor: WidgetStatePropertyAll(Colors.white)
           ),
         ),
-        scaffoldBackgroundColor: const Color.fromARGB(255, 29, 27, 27)
+        // scaffoldBackgroundColor: const Color.fromARGB(255, 29, 27, 27)
+        scaffoldBackgroundColor: const Color(0xFF0F1012),
       ),
       theme: ThemeData(
         colorScheme: .fromSeed(seedColor: Colors.blue),

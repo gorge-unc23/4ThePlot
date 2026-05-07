@@ -18,10 +18,10 @@ class _DiscoverPageState extends State<DiscoverPage> {
     final events = mockEvents;
     return Scaffold(
       body: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(10),
         child: ListView(
           children: [
-            const SizedBox(height: 20),
+            const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,

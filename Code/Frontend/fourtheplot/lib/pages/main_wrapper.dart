@@ -26,7 +26,7 @@ class _MainWrapperState extends State<MainWrapper> {
           topLeft: Radius.circular(30.0),
           topRight: Radius.circular(30.0),
         ),
-        colorBehindNavBar: const Color.fromARGB(255, 29, 27, 27), //same as scaffold color
+        colorBehindNavBar: const Color(0xFF0F1012),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.18),

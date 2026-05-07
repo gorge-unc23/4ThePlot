@@ -80,11 +80,14 @@ class TrendingEvent extends StatelessWidget {
                               color: Colors.white.withValues(alpha: 0.8),
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              event.location.address,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.85),
+                            SizedBox(
+                              width: 100,
+                              child: Text(
+                                event.location.address,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                ),
                               ),
                             ),
                           ],

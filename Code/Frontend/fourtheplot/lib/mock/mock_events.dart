@@ -11,7 +11,7 @@ final List<Event> mockEvents = [
 		startAt: DateTime(2026, 3, 15, 10, 0),
 		endAt: DateTime(2026, 3, 15, 20, 0),
 		location: EventLocation(
-			address: 'Tirana',
+			address: 'Tirana • Palace of Congresses',
 			venueName: 'Palace of Congresses',
 		),
 		capacity: EventCapacity(
@@ -35,7 +35,7 @@ final List<Event> mockEvents = [
 		startAt: DateTime(2026, 4, 10, 9, 0),
 		endAt: DateTime(2026, 4, 10, 18, 0),
 		location: EventLocation(
-			address: 'Skenderbej Square',
+			address: 'Durres • Conference Center',
 			venueName: 'Conference Center',
 		),
 		capacity: EventCapacity(
@@ -59,7 +59,7 @@ final List<Event> mockEvents = [
 		startAt: DateTime(2026, 5, 2, 17, 0),
 		endAt: DateTime(2026, 5, 2, 23, 30),
 		location: EventLocation(
-			address: 'Grand Park',
+			address: 'Vlore • Open Air Stage',
 			venueName: 'Open Air Stage',
 		),
 		capacity: EventCapacity(
@@ -83,7 +83,7 @@ final List<Event> mockEvents = [
 		startAt: DateTime(2026, 6, 7, 22, 0),
 		endAt: DateTime(2026, 6, 8, 4, 0),
 		location: EventLocation(
-			address: 'Blloku',
+			address: 'Shkoder • Pulse Club',
 			venueName: 'Pulse Club',
 		),
 		capacity: EventCapacity(
@@ -107,7 +107,7 @@ final List<Event> mockEvents = [
 		startAt: DateTime(2026, 3, 28, 20, 45),
 		endAt: DateTime(2026, 3, 28, 23, 0),
 		location: EventLocation(
-			address: 'Rruga e Kavajes',
+			address: 'Tirana • Stadium Bar',
 			venueName: 'Stadium Bar',
 		),
 		capacity: EventCapacity(
@@ -122,5 +122,11 @@ final List<Event> mockEvents = [
 		updatedAt: DateTime(2026, 2, 25, 18, 0),
 	),
 ];
+
+final Set<String> joinedEventIds = {
+	'panairi-librit',
+	'techno-rave',
+	'ucl-watch',
+};
 
 final List<Event> mock = mockEvents;
