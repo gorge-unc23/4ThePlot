@@ -118,101 +118,146 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
+  void _goToToday() {
+    final today = _dateKey(DateTime.now());
+    final targetMonth = DateTime(today.year, today.month);
+    final targetPage = _pageFromMonth(targetMonth);
+    final currentPage = _pageIndex;
+
+    setState(() {
+      _selectedDate = today;
+      _currentMonth = targetMonth;
+      _pageIndex = targetPage;
+    });
+
+    if (!_pageController.hasClients) {
+      return;
+    }
+
+    if (targetPage == currentPage) {
+      _pageController.jumpToPage(targetPage);
+    } else {
+      _pageController.animateToPage(
+        targetPage,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       // backgroundColor: const Color(0xFF0F1012),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: ListView(
-            children: [
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Calendar",
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 32),
+      body: Padding(
+        padding: const EdgeInsets.all(10),
+        child: ListView(
+          children: [
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Calendar",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 32),
+                    ),
+                    Text(
+                      _scope == CalendarScope.city
+                          ? "Search in cities for events"
+                          : "Showing events you joined",
+                      style: const TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                  ],
+                ),
+                Tooltip(
+                  message: "Go to today",
+                  child: InkWell(
+                    onTap: _goToToday,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade300,
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      Text(
-                        _scope == CalendarScope.city
-                            ? "Search in cities for events"
-                            : "Showing events you joined",
-                        style: const TextStyle(fontSize: 14, color: Colors.grey),
+                      child: Center(
+                        child: Text(
+                          DateTime.now().day.toString(),
+                          style: TextStyle(fontSize: 18, color: Colors.white),
+                        ),
                       ),
-                    ],
+                    ),
                   ),
-                ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            CupertinoSlidingSegmentedControl<CalendarScope>(
+              groupValue: _scope,
+              thumbColor: const Color(0xFF7B5CFF),
+              backgroundColor: const Color(0xFF1A1B1F),
+              onValueChanged: _onScopeChanged,
+              children: const {
+                CalendarScope.city: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Text('City events', style: TextStyle(color: Colors.white)),
+                ),
+                CalendarScope.my: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Text('My calendar', style: TextStyle(color: Colors.white)),
+                ),
+              },
+            ),
+            const SizedBox(height: 14),
+            if (_scope == CalendarScope.city)
+              DropdownButtonFormField<String>(
+                initialValue: _selectedCity,
+                dropdownColor: const Color(0xFF1A1B1F),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'City',
+                  labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                  filled: true,
+                  fillColor: const Color(0xFF1A1B1F),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                  ),
+                ),
+                items: _cities
+                    .map((city) => DropdownMenuItem(value: city, child: Text(city)))
+                    .toList(),
+                onChanged: _onCityChanged,
               ),
-              const SizedBox(height: 12),
-              CupertinoSlidingSegmentedControl<CalendarScope>(
-                groupValue: _scope,
-                thumbColor: const Color(0xFF7B5CFF),
-                backgroundColor: const Color(0xFF1A1B1F),
-                onValueChanged: _onScopeChanged,
-                children: const {
-                  CalendarScope.city: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Text('City events', style: TextStyle(color: Colors.white)),
-                  ),
-                  CalendarScope.my: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Text('My calendar', style: TextStyle(color: Colors.white)),
-                  ),
+            const SizedBox(height: 16),
+            _buildMonthHeader(),
+            const SizedBox(height: 12),
+            _buildWeekdayRow(),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 320,
+              child: PageView.builder(
+                controller: _pageController,
+                onPageChanged: _onPageChanged,
+                itemBuilder: (context, index) {
+                  final month = _monthFromPage(index);
+                  return _buildMonthGrid(month);
                 },
               ),
-              const SizedBox(height: 14),
-              if (_scope == CalendarScope.city)
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedCity,
-                  dropdownColor: const Color(0xFF1A1B1F),
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'City',
-                    labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-                    filled: true,
-                    fillColor: const Color(0xFF1A1B1F),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-                    ),
-                  ),
-                  items: _cities
-                      .map((city) => DropdownMenuItem(value: city, child: Text(city)))
-                      .toList(),
-                  onChanged: _onCityChanged,
-                ),
-              const SizedBox(height: 16),
-              _buildMonthHeader(),
-              const SizedBox(height: 12),
-              _buildWeekdayRow(),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 320,
-                child: PageView.builder(
-                  controller: _pageController,
-                  onPageChanged: _onPageChanged,
-                  itemBuilder: (context, index) {
-                    final month = _monthFromPage(index);
-                    return _buildMonthGrid(month);
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildAgendaHeader(),
-              const SizedBox(height: 8),
-              Expanded(child: _buildAgendaList()),
-            ],
-          ),
+            ),
+            const SizedBox(height: 16),
+            _buildAgendaHeader(),
+            const SizedBox(height: 8),
+            Expanded(child: _buildAgendaList()),
+          ],
         ),
       ),
     );
@@ -398,6 +443,7 @@ class _CalendarPageState extends State<CalendarPage> {
     }
 
     return ListView.separated(
+      shrinkWrap: true,
       itemCount: events.length,
       separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
@@ -447,6 +493,10 @@ class _CalendarPageState extends State<CalendarPage> {
 
   DateTime _monthFromPage(int page) {
     return DateTime(_baseMonth.year, _baseMonth.month + (page - _initialPage));
+  }
+
+  int _pageFromMonth(DateTime month) {
+    return _initialPage + (month.year - _baseMonth.year) * 12 + (month.month - _baseMonth.month);
   }
 
   DateTime _dateKey(DateTime date) => DateTime(date.year, date.month, date.day);
