@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fourtheplot/mock/mock_events.dart';
 import 'package:fourtheplot/models/event.dart';
+import 'package:fourtheplot/pages/join_event/join_event_page.dart';
 import 'package:fourtheplot/pages/settings/settings_page.dart';
 import 'package:intl/intl.dart';
 
@@ -237,7 +238,13 @@ class _ProfilePageState extends State<ProfilePage> {
               borderRadius: BorderRadius.circular(16),
             ),
             child: TextButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (context) => JoinEventPage(event: event),
+                  ),
+                );
+              },
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 minimumSize: Size.zero,

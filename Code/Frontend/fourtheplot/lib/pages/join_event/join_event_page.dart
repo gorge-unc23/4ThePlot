@@ -3,7 +3,9 @@ import 'package:fourtheplot/common/colors.dart';
 import 'package:fourtheplot/common/credit_card_expiry_formatter.dart';
 import 'package:fourtheplot/common/credit_card_number_formatter.dart';
 import 'package:fourtheplot/models/event.dart';
+import 'package:fourtheplot/widgets/gradient_button.dart';
 import 'package:fourtheplot/widgets/info_card.dart';
+import 'package:fourtheplot/widgets/quantity_button.dart';
 import 'package:fourtheplot/widgets/tag_chip.dart';
 import 'package:intl/intl.dart';
 
@@ -217,7 +219,7 @@ class _JoinEventPageState extends State<JoinEventPage> {
                   ],
                 ),
               ),
-              _QuantityButton(
+              QuantityButton(
                 icon: Icons.remove,
                 onPressed: _ticketCount > 1 ? _decrementTickets : null,
               ),
@@ -232,7 +234,7 @@ class _JoinEventPageState extends State<JoinEventPage> {
                   ),
                 ),
               ),
-              _QuantityButton(
+              QuantityButton(
                 icon: Icons.add,
                 onPressed: _ticketCount < 6 ? _incrementTickets : null,
               ),
@@ -414,7 +416,7 @@ class _JoinEventPageState extends State<JoinEventPage> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: _ConfirmButton(label: ctaLabel, onPressed: _handleConfirm),
+            child: GradientButton(label: ctaLabel, onPressed: _handleConfirm),
           ),
         ],
       ),
@@ -442,65 +444,4 @@ class _JoinEventPageState extends State<JoinEventPage> {
   }
 }
 
-class _QuantityButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onPressed;
 
-  const _QuantityButton({required this.icon, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    final isEnabled = onPressed != null;
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: onPressed,
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: isEnabled ? 0.12 : 0.05),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: isEnabled ? 0.2 : 0.08),
-          ),
-        ),
-        child: Icon(icon, color: Colors.white, size: 18),
-      ),
-    );
-  }
-}
-
-class _ConfirmButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onPressed;
-
-  const _ConfirmButton({required this.label, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          child: Ink(
-            height: 48,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(colors: [Color(0xFF9B6CFF), Color(0xFF6EA8FF)]),
-            ),
-            child: Center(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

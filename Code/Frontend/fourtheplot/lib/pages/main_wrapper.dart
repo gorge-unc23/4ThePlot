@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:fourtheplot/pages/add_event/add_event_page.dart';
 import 'package:fourtheplot/pages/calendar/calendar_page.dart';
 import 'package:fourtheplot/pages/discover/discover_page.dart';
 import 'package:fourtheplot/pages/map/map_page.dart';
@@ -44,7 +45,7 @@ class _MainWrapperState extends State<MainWrapper> {
   }
 
   List<Widget> _buildScreens() {
-    return [DiscoverPage(), CalendarPage(), MapPage(), ProfilePage()];
+    return [DiscoverPage(), CalendarPage(), AddEventPage(), MapPage(), ProfilePage()];
   }
 
   List<PersistentBottomNavBarItem> _navBarsItems() {
@@ -58,6 +59,12 @@ class _MainWrapperState extends State<MainWrapper> {
       PersistentBottomNavBarItem(
         icon: Icon(CupertinoIcons.calendar),
         title: ("Calendar"),
+        activeColorPrimary: CupertinoColors.activeBlue,
+        inactiveColorPrimary: CupertinoColors.systemGrey,
+      ),
+      PersistentBottomNavBarItem(
+        icon: Icon(CupertinoIcons.add),
+        title: ("Add"),
         activeColorPrimary: CupertinoColors.activeBlue,
         inactiveColorPrimary: CupertinoColors.systemGrey,
       ),
