@@ -164,6 +164,7 @@ class Event {
 	final String coverImageUrl;
 	final DateTime createdAt;
 	final DateTime updatedAt;
+  // TODO: Add a joined bool
 
 	const Event({
 		required this.id,

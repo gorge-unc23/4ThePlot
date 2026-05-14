@@ -125,18 +125,16 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
 
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => ChangeNotifierProvider.value(
-          value: draft,
-          child: const AddEventPhotosPage(),
-        ),
+        builder: (context) =>
+            ChangeNotifierProvider.value(value: draft, child: const AddEventPhotosPage()),
       ),
     );
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
   }
 
   @override
@@ -145,25 +143,36 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: backgroundColor,
-        elevation: 0,
-        title: const Text('Create event'),
-      ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        padding: const EdgeInsets.fromLTRB(10, 12, 10, 24),
         children: [
-          Text(
-            'Step 1 of 3',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+          const SizedBox(height: 32),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: const [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Create Event",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 32),
+                  ),
+                  Text("Step 1 of 3", style: TextStyle(fontSize: 14, color: Colors.grey)),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 28),
           _buildSectionCard(
             child: Form(
               key: _formKey,
               child: Column(
                 children: [
                   TextFormField(
+                    onTapOutside: (PointerDownEvent event) {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                    },
                     controller: _titleController,
                     style: const TextStyle(color: Colors.white),
                     decoration: _inputDecoration('Event title', icon: Icons.event),
@@ -177,6 +186,9 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
+                    onTapOutside: (PointerDownEvent event) {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                    },
                     controller: _descriptionController,
                     style: const TextStyle(color: Colors.white),
                     maxLines: 3,
@@ -191,6 +203,9 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
+                    onTapOutside: (PointerDownEvent event) {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                    },
                     controller: _locationController,
                     style: const TextStyle(color: Colors.white),
                     decoration: _inputDecoration('Location address', icon: Icons.place),
@@ -204,9 +219,15 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
+                    onTapOutside: (PointerDownEvent event) {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                    },
                     controller: _venueController,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Venue name (optional)', icon: Icons.location_city),
+                    decoration: _inputDecoration(
+                      'Venue name (optional)',
+                      icon: Icons.location_city,
+                    ),
                     onChanged: draft.setVenueName,
                   ),
                   const SizedBox(height: 16),
@@ -231,7 +252,10 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
                       }
                     },
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Paid event', style: TextStyle(color: Colors.white)),
+                    title: const Text(
+                      'Paid event',
+                      style: TextStyle(color: Colors.white),
+                    ),
                     subtitle: Text(
                       'Toggle on to charge for tickets.',
                       style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
@@ -240,6 +264,9 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
+                    onTapOutside: (PointerDownEvent event) {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                    },
                     controller: _priceController,
                     style: const TextStyle(color: Colors.white),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -266,24 +293,42 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
+                    onTapOutside: (PointerDownEvent event) {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                    },
                     controller: _categoriesController,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Categories (comma separated)', icon: Icons.category),
+                    decoration: _inputDecoration(
+                      'Categories (comma separated)',
+                      icon: Icons.category,
+                    ),
                     onChanged: draft.setCategoriesFromText,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
+                    onTapOutside: (PointerDownEvent event) {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                    },
                     controller: _tagsController,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Tags (comma separated)', icon: Icons.tag),
+                    decoration: _inputDecoration(
+                      'Tags (comma separated)',
+                      icon: Icons.tag,
+                    ),
                     onChanged: draft.setTagsFromText,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
+                    onTapOutside: (PointerDownEvent event) {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                    },
                     controller: _capacityController,
                     style: const TextStyle(color: Colors.white),
                     keyboardType: TextInputType.number,
-                    decoration: _inputDecoration('Capacity (optional)', icon: Icons.groups),
+                    decoration: _inputDecoration(
+                      'Capacity (optional)',
+                      icon: Icons.groups,
+                    ),
                     onChanged: (value) {
                       final parsed = int.tryParse(value);
                       draft.setCapacityMax(parsed);
@@ -296,13 +341,7 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
           const SizedBox(height: 110),
         ],
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: _BottomActionBar(
-          label: 'Next',
-          onPressed: () => _handleNext(draft),
-        ),
-      ),
+      bottomNavigationBar: _BottomActionBar(label: 'Next', onPressed: () => _handleNext(draft)),
     );
   }
 
@@ -318,7 +357,11 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
     );
   }
 
-  InputDecoration _inputDecoration(String label, {required IconData icon, String? helper}) {
+  InputDecoration _inputDecoration(
+    String label, {
+    required IconData icon,
+    String? helper,
+  }) {
     return InputDecoration(
       labelText: label,
       helperText: helper,
@@ -344,11 +387,7 @@ class _DateTimeField extends StatelessWidget {
   final String value;
   final VoidCallback onTap;
 
-  const _DateTimeField({
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
+  const _DateTimeField({required this.label, required this.value, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -370,9 +409,21 @@ class _DateTimeField extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 12,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -395,12 +446,8 @@ class _BottomActionBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF171C38), Color(0xFF101428)],
-        ),
-        border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
-        ),
+        gradient: const LinearGradient(colors: [Color(0xFF171C38), Color(0xFF101428)]),
+        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.3),

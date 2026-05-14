@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:fourtheplot/mock/mock_events.dart';
 import 'package:fourtheplot/models/event.dart';
+import 'package:fourtheplot/pages/join_event/join_event_page.dart';
 import 'package:intl/intl.dart';
 
 enum CalendarScope { city, my }
@@ -449,28 +450,37 @@ class _CalendarPageState extends State<CalendarPage> {
       itemBuilder: (context, index) {
         final event = events[index];
         final color = _eventColor(event, index);
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                event.title,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        return InkWell(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                  builder: (context) => JoinEventPage(event: event),
               ),
-              const SizedBox(height: 4),
-              Text(
-                _formatTimeRange(event),
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 12,
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  event.title,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  _formatTimeRange(event),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
