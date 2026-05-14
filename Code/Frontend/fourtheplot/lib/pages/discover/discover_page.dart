@@ -20,15 +20,15 @@ class _DiscoverPageState extends State<DiscoverPage> {
       body: Padding(
         padding: const EdgeInsets.all(10),
         child: ListView(
-          children: [
+          children:  [
             const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
+              children: const [
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children:  [
                     Text(
                       "Discover Events",
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 32),
@@ -39,14 +39,14 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     ),
                   ],
                 ),
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Colors.blue.shade300,
-                  child: const Text(
-                    'R',
-                    style: TextStyle(fontSize: 18, color: Colors.white),
-                  ),
-                ),
+                // CircleAvatar(
+                //   radius: 24,
+                //   backgroundColor: Colors.blue.shade300,
+                //   child: const Text(
+                //     'R',
+                //     style: TextStyle(fontSize: 18, color: Colors.white),
+                //   ),
+                // ),
               ],
             ),
             const SizedBox(height: 28),

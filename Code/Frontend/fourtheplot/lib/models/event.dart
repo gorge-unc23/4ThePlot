@@ -159,6 +159,8 @@ class Event {
 	final RecurrenceRule? recurrence;
 	final List<String> categories;
 	final List<String> tags;
+	final double price;
+	final String currency;
 	final String coverImageUrl;
 	final DateTime createdAt;
 	final DateTime updatedAt;
@@ -177,10 +179,14 @@ class Event {
 		this.recurrence,
 		required this.categories,
 		required this.tags,
+		required this.price,
+		required this.currency,
 		required this.coverImageUrl,
 		required this.createdAt,
 		required this.updatedAt,
 	});
+
+	bool get isFree => price <= 0;
 
 	Event copyWith({
 		String? id,
@@ -196,6 +202,8 @@ class Event {
 		RecurrenceRule? recurrence,
 		List<String>? categories,
 		List<String>? tags,
+		double? price,
+		String? currency,
 		String? coverImageUrl,
 		DateTime? createdAt,
 		DateTime? updatedAt,
@@ -214,6 +222,8 @@ class Event {
 			recurrence: recurrence ?? this.recurrence,
 			categories: categories ?? this.categories,
 			tags: tags ?? this.tags,
+			price: price ?? this.price,
+			currency: currency ?? this.currency,
 			coverImageUrl: coverImageUrl ?? this.coverImageUrl,
 			createdAt: createdAt ?? this.createdAt,
 			updatedAt: updatedAt ?? this.updatedAt,
@@ -247,6 +257,8 @@ class Event {
 							?.map((e) => e as String)
 							.toList() ??
 					const [],
+			price: (json['price'] as num?)?.toDouble() ?? 0,
+			currency: (json['currency'] as String?) ?? 'EUR',
 			coverImageUrl: json['coverImageUrl'] as String,
 			createdAt: DateTime.parse(json['createdAt'] as String),
 			updatedAt: DateTime.parse(json['updatedAt'] as String),
@@ -268,6 +280,8 @@ class Event {
 			'recurrence': recurrence?.toJson(),
 			'categories': categories,
 			'tags': tags,
+			'price': price,
+			'currency': currency,
 			'coverImageUrl': coverImageUrl,
 			'createdAt': createdAt.toIso8601String(),
 			'updatedAt': updatedAt.toIso8601String(),

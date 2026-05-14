@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fourtheplot/models/event.dart';
+import 'package:fourtheplot/pages/event_details/event_details_page.dart';
 import 'package:intl/intl.dart';
 
 class TrendingEvent extends StatelessWidget {
@@ -11,12 +12,13 @@ class TrendingEvent extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        // Navigator.of(context).push(
-        //   MaterialPageRoute(
-        //     builder: (context) => DetailsPage(
-        //     ),
-        //   ),
-        // );
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => EventDetailsPage(
+              event: event,
+            ),
+          ),
+        );
       },
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -81,7 +83,7 @@ class TrendingEvent extends StatelessWidget {
                             ),
                             const SizedBox(width: 4),
                             SizedBox(
-                              width: 100,
+                              width: 110,
                               child: Text(
                                 event.location.address,
                                 overflow: TextOverflow.ellipsis,
@@ -156,26 +158,26 @@ class TrendingEvent extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Container(
-                    width: 65,
-                    height: 35,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.purple.shade400, Colors.pink.shade300],
-                      ),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: TextButton(
-                      onPressed: () {},
-                      child: const Text(
-                        'Join',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
+                  // Container(
+                  //   width: 65,
+                  //   height: 35,
+                  //   decoration: BoxDecoration(
+                  //     gradient: LinearGradient(
+                  //       colors: [Colors.purple.shade400, Colors.pink.shade300],
+                  //     ),
+                  //     borderRadius: BorderRadius.circular(18),
+                  //   ),
+                  //   child: TextButton(
+                  //     onPressed: () {},
+                  //     child: const Text(
+                  //       'Join',
+                  //       style: TextStyle(
+                  //         color: Colors.white,
+                  //         fontWeight: FontWeight.bold,
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
                 ],
               ),
             ),
