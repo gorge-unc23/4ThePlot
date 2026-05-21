@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/pages/login/login_page.dart';
+import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:fourtheplot/pages/signup/signup_page.dart';
 import 'package:fourtheplot/widgets/glassmorphism.dart';
 import 'package:fourtheplot/widgets/gradient_text.dart';
@@ -31,11 +33,26 @@ class _LandingPageState extends State<LandingPage> {
   @override
   void initState() {
     super.initState();
+    _checkSession();
     _taglineTimer = Timer.periodic(_taglineInterval, (_) {
       if (!mounted) return;
       setState(() {
         _taglineIndex = (_taglineIndex + 1) % _taglines.length;
       });
+    });
+  }
+
+  Future<void> _checkSession() async {
+    final user = await DatabaseHelper.instance.loadUser();
+    if (!mounted || user == null) {
+      return;
+    }
+    MainWrapper.loggedInUser = user;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const MainWrapper()),
+      );
     });
   }
 

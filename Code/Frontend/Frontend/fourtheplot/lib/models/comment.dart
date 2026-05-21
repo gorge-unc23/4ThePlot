@@ -2,9 +2,9 @@ import 'event.dart';
 import 'user.dart';
 
 class Comment {
-	final String id;
-	final String userId;
-	final String eventId;
+	final int id;
+	final int userId;
+	final int eventId;
 	final String text;
 	final DateTime createdAt;
 	final User? author;
@@ -21,9 +21,9 @@ class Comment {
 	});
 
 	Comment copyWith({
-		String? id,
-		String? userId,
-		String? eventId,
+		int? id,
+		int? userId,
+		int? eventId,
 		String? text,
 		DateTime? createdAt,
 		User? author,
@@ -42,9 +42,9 @@ class Comment {
 
 	factory Comment.fromJson(Map<String, dynamic> json) {
 		return Comment(
-			id: (json['id'] as String?) ?? '',
-			userId: (json['userId'] as String?) ?? (json['user_id']?.toString() ?? ''),
-			eventId: (json['eventId'] as String?) ?? (json['event_id']?.toString() ?? ''),
+			id: json['id'],
+			userId: json['userId'],
+			eventId: json['eventId'],
 			text: (json['text'] as String?) ?? '',
 			createdAt: json['createdAt'] != null
 					? DateTime.parse(json['createdAt'] as String)

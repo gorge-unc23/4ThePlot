@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/pages/landing/landing_page.dart';
@@ -102,6 +100,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 title: const Text('Logout', style: TextStyle(color: Colors.redAccent)),
                 trailing: const Icon(Icons.chevron_right, color: Colors.redAccent),
                 onTap: () {
+                  DatabaseHelper.instance.clearSession();
                   Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
                     MaterialPageRoute(builder: (context) => LandingPage()),
                     (route) => false,

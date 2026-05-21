@@ -4,7 +4,7 @@ final now = DateTime.now();
 
 final List<User> mockUsers = [ 
   User(
-    id: 'user_01',
+    id: 1,
     displayName: 'Alma K.',
     email: 'alma@example.com',
     role: UserRole.goer,
@@ -13,7 +13,7 @@ final List<User> mockUsers = [
     updatedAt: now.subtract(const Duration(days: 2)),
   ),
   User(
-    id: 'user_02',
+    id: 2,
     displayName: 'Erion D.',
     email: 'erion@example.com',
     role: UserRole.goer,
@@ -22,7 +22,7 @@ final List<User> mockUsers = [
     updatedAt: now.subtract(const Duration(days: 1)),
   ),
   User(
-    id: 'user_03',
+    id: 3,
     displayName: 'Luna P.',
     email: 'luna@example.com',
     role: UserRole.goer,

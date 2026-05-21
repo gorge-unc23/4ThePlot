@@ -63,7 +63,7 @@ String userStatusToString(UserStatus status) {
 }
 
 class User {
-    final String id;
+    final int id;
     final String displayName;
     final String email;
     final String? phone;
@@ -92,7 +92,7 @@ class User {
     });
 
     User copyWith({
-        String? id,
+        int? id,
         String? displayName,
         String? email,
         String? phone,
@@ -123,7 +123,7 @@ class User {
 
     factory User.fromJson(Map<String, dynamic> json) {
         return User(
-            id: (json['id'] as String?) ?? '',
+            id: json['id'],
             displayName: (json['displayName'] as String?) ?? '',
             email: (json['email'] as String?) ?? '',
             phone: json['phone'] as String?,
@@ -157,7 +157,7 @@ class User {
             'email': email,
             'phone': phone,
             'avatarUrl': avatarUrl,
-            'role': role,
+            'role': userRoleToString(role),
             'status': userStatusToString(status),
             'goerPreferences': goerPreferences?.toJson(),
             'businessProfile': businessProfile?.toJson(),

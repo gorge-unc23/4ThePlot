@@ -8,6 +8,7 @@ import 'package:fourtheplot/models/comment.dart';
 import 'package:fourtheplot/models/event.dart';
 import 'package:fourtheplot/models/user.dart';
 import 'package:fourtheplot/pages/join_event/join_event_page.dart';
+import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:fourtheplot/widgets/comment_card.dart';
 import 'package:fourtheplot/widgets/glassmorphism.dart';
 import 'package:fourtheplot/widgets/gradient_text.dart';
@@ -113,7 +114,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
   User _buildCurrentUser() {
     final now = DateTime.now();
     return User(
-      id: 'user_current',
+      id: 1,
       displayName: 'You',
       email: 'you@example.com',
       role: UserRole.goer,
@@ -129,9 +130,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       return;
     }
     final comment = Comment(
-      id: 'comment_${DateTime.now().microsecondsSinceEpoch}',
-      userId: _currentUser.id,
-      eventId: widget.event.id,
+      id: 5,
+      userId: MainWrapper.loggedInUser.id,
+      eventId: 5,
       text: text,
       createdAt: DateTime.now(),
       author: _currentUser,

@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:fourtheplot/models/user.dart';
 import 'package:fourtheplot/pages/add_event/add_event_flow_root.dart';
 import 'package:fourtheplot/pages/calendar/calendar_page.dart';
 import 'package:fourtheplot/pages/discover/discover_page.dart';
@@ -8,6 +9,8 @@ import 'package:fourtheplot/pages/profile/profile_page.dart';
 import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 
 class MainWrapper extends StatefulWidget {
+  static late User loggedInUser;
+
   const MainWrapper({super.key});
 
   @override

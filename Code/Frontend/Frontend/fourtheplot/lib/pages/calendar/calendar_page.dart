@@ -1,8 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:fourtheplot/mock/mock_events.dart';
+import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/models/event.dart';
-import 'package:fourtheplot/pages/join_event/join_event_page.dart';
+import 'package:fourtheplot/pages/event_details/event_details_page.dart';
+import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:intl/intl.dart';
 
 enum CalendarScope { city, my }
@@ -18,18 +19,17 @@ class _CalendarPageState extends State<CalendarPage> {
   static const int _initialPage = 1200;
   static const List<String> _cities = [
     'Tirana',
-    'Durres',
-    'Vlore',
-    'Shkoder',
+    'Durrës',
+    'Vlorë',
+    'Shkodër',
     'Elbasan',
     'Berat',
-    'Korca',
-    'Gjirokaster',
+    'Korçë',
+    'Gjirokastër',
     'Fier',
-    'Lezhe',
+    'Lezhë',
   ];
 
-  final _EventRepository _repository = _MockEventRepository();
   final List<Color> _eventColors = [
     Color(0xFF10B981),
     Color(0xFFF97316),
@@ -44,10 +44,10 @@ class _CalendarPageState extends State<CalendarPage> {
   CalendarScope _scope = CalendarScope.city;
   String _selectedCity = _cities.first;
   bool _isLoading = false;
+  String? _errorMessage;
   int _pageIndex = _initialPage;
   DateTime _currentMonth = DateTime.now();
   DateTime _selectedDate = DateTime.now();
-  List<Event> _events = const [];
   Map<DateTime, List<Event>> _eventsByDate = {};
 
   @override
@@ -70,17 +70,32 @@ class _CalendarPageState extends State<CalendarPage> {
   Future<void> _loadEvents() async {
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
     });
 
-    final events = _scope == CalendarScope.city
-        ? await _repository.fetchCityEvents(_selectedCity)
-        : await _repository.fetchJoinedEvents();
+    final result = _scope == CalendarScope.city
+        ? await DatabaseHelper.instance.getCityEvents(_selectedCity)
+        : await DatabaseHelper.instance.getRegisteredEvents(MainWrapper.loggedInUser.id);
+
+    if (!mounted) {
+      return;
+    }
+
+    if (!result.success || result.data is! List<Event>) {
+      setState(() {
+        _eventsByDate = {};
+        _isLoading = false;
+        _errorMessage = result.message;
+      });
+      return;
+    }
 
     if (!mounted) return;
+    final loadedEvents = (result.data as List<Event>)..sort((a, b) => a.startAt.compareTo(b.startAt));
     setState(() {
-      _events = events..sort((a, b) => a.startAt.compareTo(b.startAt));
-      _eventsByDate = _buildEventsIndex(_events);
+      _eventsByDate = _buildEventsIndex(loadedEvents);
       _isLoading = false;
+      _errorMessage = null;
     });
   }
 
@@ -152,113 +167,128 @@ class _CalendarPageState extends State<CalendarPage> {
       // backgroundColor: const Color(0xFF0F1012),
       body: Padding(
         padding: const EdgeInsets.all(10),
-        child: ListView(
-          children: [
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Calendar",
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 32),
-                    ),
-                    Text(
-                      _scope == CalendarScope.city
-                          ? "Search in cities for events"
-                          : "Showing events you joined",
-                      style: const TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
-                  ],
-                ),
-                Tooltip(
-                  message: "Go to today",
-                  child: InkWell(
-                    onTap: _goToToday,
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade300,
-                        borderRadius: BorderRadius.circular(14),
+        child: RefreshIndicator(
+          onRefresh: () async {
+            _loadEvents();
+          },
+          child: ListView(
+            children: [
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Calendar",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 32),
                       ),
-                      child: Center(
-                        child: Text(
-                          DateTime.now().day.toString(),
-                          style: TextStyle(fontSize: 18, color: Colors.white),
+                      Text(
+                        _scope == CalendarScope.city
+                            ? "Search in cities for events"
+                            : "Showing events you joined",
+                        style: const TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                  Tooltip(
+                    message: "Go to today",
+                    child: InkWell(
+                      onTap: _goToToday,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade300,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Center(
+                          child: Text(
+                            DateTime.now().day.toString(),
+                            style: TextStyle(fontSize: 18, color: Colors.white),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            CupertinoSlidingSegmentedControl<CalendarScope>(
-              groupValue: _scope,
-              thumbColor: const Color(0xFF7B5CFF),
-              backgroundColor: const Color(0xFF1A1B1F),
-              onValueChanged: _onScopeChanged,
-              children: const {
-                CalendarScope.city: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: Text('City events', style: TextStyle(color: Colors.white)),
-                ),
-                CalendarScope.my: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: Text('My calendar', style: TextStyle(color: Colors.white)),
-                ),
-              },
-            ),
-            const SizedBox(height: 14),
-            if (_scope == CalendarScope.city)
-              DropdownButtonFormField<String>(
-                initialValue: _selectedCity,
-                dropdownColor: const Color(0xFF1A1B1F),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'City',
-                  labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-                  filled: true,
-                  fillColor: const Color(0xFF1A1B1F),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-                  ),
-                ),
-                items: _cities
-                    .map((city) => DropdownMenuItem(value: city, child: Text(city)))
-                    .toList(),
-                onChanged: _onCityChanged,
+                ],
               ),
-            const SizedBox(height: 16),
-            _buildMonthHeader(),
-            const SizedBox(height: 12),
-            _buildWeekdayRow(),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 320,
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: _onPageChanged,
-                itemBuilder: (context, index) {
-                  final month = _monthFromPage(index);
-                  return _buildMonthGrid(month);
+              const SizedBox(height: 12),
+              CupertinoSlidingSegmentedControl<CalendarScope>(
+                groupValue: _scope,
+                thumbColor: const Color(0xFF7B5CFF),
+                backgroundColor: const Color(0xFF1A1B1F),
+                onValueChanged: _onScopeChanged,
+                children: const {
+                  CalendarScope.city: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Text('City events', style: TextStyle(color: Colors.white)),
+                  ),
+                  CalendarScope.my: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Text('My calendar', style: TextStyle(color: Colors.white)),
+                  ),
                 },
               ),
-            ),
-            const SizedBox(height: 16),
-            _buildAgendaHeader(),
-            const SizedBox(height: 8),
-            Expanded(child: _buildAgendaList()),
-          ],
+              const SizedBox(height: 14),
+              if (_scope == CalendarScope.city)
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedCity,
+                  dropdownColor: const Color(0xFF1A1B1F),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'City',
+                    labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                    filled: true,
+                    fillColor: const Color(0xFF1A1B1F),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                    ),
+                  ),
+                  items: _cities
+                      .map((city) => DropdownMenuItem(value: city, child: Text(city)))
+                      .toList(),
+                  onChanged: _onCityChanged,
+                ),
+              const SizedBox(height: 16),
+              if ((_scope == CalendarScope.my && _eventsByDate.isNotEmpty) || _scope == CalendarScope.city) ...[
+                _buildMonthHeader(),
+                const SizedBox(height: 12),
+                _buildWeekdayRow(),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 320,
+                  child: PageView.builder(
+                    controller: _pageController,
+                    onPageChanged: _onPageChanged,
+                    itemBuilder: (context, index) {
+                      final month = _monthFromPage(index);
+                      return _buildMonthGrid(month);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildAgendaHeader(),
+                const SizedBox(height: 8),
+                _buildAgendaList(),
+              ]
+              else ...[
+                Center(
+                  child: Text(
+                    "You are not joined in any event.",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -438,6 +468,26 @@ class _CalendarPageState extends State<CalendarPage> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    if (_errorMessage != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          children: [
+            Text(
+              'Could not load events: $_errorMessage',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton(
+              onPressed: _loadEvents,
+              child: const Text('Try again'),
+            ),
+          ],
+        ),
+      );
+    }
+
     final events = _eventsForDate(_selectedDate);
     if (events.isEmpty) {
       return _buildEmptyState();
@@ -445,6 +495,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
     return ListView.separated(
       shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: events.length,
       separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
@@ -454,7 +505,7 @@ class _CalendarPageState extends State<CalendarPage> {
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(
-                  builder: (context) => JoinEventPage(event: event),
+                  builder: (context) => EventDetailsPage(event: event),
               ),
             );
           },
@@ -554,27 +605,5 @@ class _CalendarPageState extends State<CalendarPage> {
     final start = DateFormat('hh:mm a').format(event.startAt);
     final end = DateFormat('hh:mm a').format(event.endAt);
     return '$start - $end';
-  }
-}
-
-abstract class _EventRepository {
-  Future<List<Event>> fetchCityEvents(String city);
-  Future<List<Event>> fetchJoinedEvents();
-}
-
-class _MockEventRepository implements _EventRepository {
-  @override
-  Future<List<Event>> fetchCityEvents(String city) async {
-    final cityLower = city.toLowerCase();
-    return mockEvents.where((event) {
-      final address = event.location.address.toLowerCase();
-      final venue = (event.location.venueName ?? '').toLowerCase();
-      return address.contains(cityLower) || venue.contains(cityLower);
-    }).toList();
-  }
-
-  @override
-  Future<List<Event>> fetchJoinedEvents() async {
-    return mockEvents.where((event) => joinedEventIds.contains(event.id)).toList();
   }
 }

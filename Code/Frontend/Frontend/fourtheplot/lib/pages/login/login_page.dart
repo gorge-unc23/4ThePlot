@@ -16,7 +16,7 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-    String? _serverError;
+  String? _serverError;
   bool _obscurePassword = true;
 
   @override

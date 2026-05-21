@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fourtheplot/mock/mock_events.dart';
 import 'package:fourtheplot/models/event.dart';
 import 'package:fourtheplot/pages/join_event/join_event_page.dart';
+import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:fourtheplot/pages/settings/settings_page.dart';
 import 'package:intl/intl.dart';
 
@@ -13,10 +14,6 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final String _userName = 'Filan Fisteku';
-  final String _userEmail = 'filan.fisteku@gmail.com';
-  final String _userInitials = 'FF';
-
   @override
   Widget build(BuildContext context) {
     final savedEvents = mockEvents
@@ -52,7 +49,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _userName,
+                      MainWrapper.loggedInUser.displayName,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -61,7 +58,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _userEmail,
+                      MainWrapper.loggedInUser.email,
                       style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
                     ),
                   ],
@@ -125,7 +122,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       child: Center(
         child: Text(
-          _userInitials,
+          MainWrapper.loggedInUser.displayName[0] + MainWrapper.loggedInUser.displayName.split(' ')[1][0],
           style: const TextStyle(
             color: Colors.white,
             fontSize: 20,

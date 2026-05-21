@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:fourtheplot/pages/main_wrapper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fourtheplot/models/comment.dart';
 import 'package:fourtheplot/models/event.dart';
 import 'package:fourtheplot/models/user.dart';
@@ -63,6 +65,7 @@ class ApiToken {
 class DatabaseHelper {
   static const _accessTokenKey = 'auth.accessToken';
   static const _tokenTypeKey = 'auth.tokenType';
+  static const _userKey = 'auth.user';
   static const _requestTimeout = Duration(seconds: 20);
 
   String serverIp = const String.fromEnvironment(
@@ -126,6 +129,40 @@ class DatabaseHelper {
     await Future.wait([
       _secureStorage.delete(key: _accessTokenKey),
       _secureStorage.delete(key: _tokenTypeKey),
+    ]);
+  }
+
+  Future<void> saveUser(User user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userKey, jsonEncode(user.toJson()));
+  }
+
+  Future<User?> loadUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_userKey);
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        return User.fromJson(decoded);
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
+
+  Future<void> clearStoredUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_userKey);
+  }
+
+  Future<void> clearSession() async {
+    await Future.wait([
+      clearAuthToken(),
+      clearStoredUser(),
     ]);
   }
 
@@ -261,12 +298,43 @@ class DatabaseHelper {
       return result;
     }
 
-    final token = ApiToken.fromJson(result.data as Map<String, dynamic>);
+    final payload = result.data as Map<String, dynamic>;
+    final token = ApiToken.fromJson(payload);
     if (token.accessToken.isNotEmpty) {
       await setAuthToken(token.accessToken, tokenType: token.tokenType);
     }
 
-    return result.copyWith(data: token, token: token.accessToken);
+    final user = _extractUserFromLogin(payload);
+    if (user != null) {
+      await saveUser(user);
+      MainWrapper.loggedInUser = user;
+    }
+
+    return result.copyWith(
+      data: user ?? token,
+      token: token.accessToken,
+    );
+  }
+
+  User? _extractUserFromLogin(Map<String, dynamic> payload) {
+    Map<String, dynamic>? userJson;
+
+    final nestedUser = payload['user'];
+    if (nestedUser is Map<String, dynamic>) {
+      userJson = nestedUser;
+    } else if (payload.containsKey('displayName') && payload.containsKey('email')) {
+      userJson = payload;
+    }
+
+    if (userJson == null) {
+      return null;
+    }
+
+    try {
+      return User.fromJson(userJson);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<ApiResult> getUser(int userId) async {
@@ -289,7 +357,7 @@ class DatabaseHelper {
     return _request('DELETE', 'user/$userId');
   }
 
-  Future<ApiResult> getEvents({bool useCache = true}) async {
+  Future<ApiResult> getAllEvents({bool useCache = true}) async {
     const cacheKey = 'events';
     final result = await _request('GET', 'events/');
     if (!result.success) {
@@ -376,6 +444,36 @@ class DatabaseHelper {
       'GET',
       'events/search',
       query: {'q': searchCriteria},
+    );
+    if (!result.success) {
+      return result;
+    }
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(Event.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> getCityEvents(String city) async {
+    final result = await _request(
+      'GET',
+      'events/city/$city',
+    );
+    if (!result.success) {
+      return result;
+    }
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(Event.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> getRegisteredEvents(int userId) async {
+    final result = await _request(
+      'GET',
+      'events/registered/$userId',
     );
     if (!result.success) {
       return result;
