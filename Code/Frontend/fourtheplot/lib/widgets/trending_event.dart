@@ -29,15 +29,17 @@ class TrendingEvent extends StatelessWidget {
               width: double.infinity,
               fit: BoxFit.cover,
             ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.05),
-                    Colors.black.withValues(alpha: 0.7),
-                  ],
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.05),
+                      Colors.black.withValues(alpha: 0.7),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -146,8 +148,8 @@ class TrendingEvent extends StatelessWidget {
                                       color: Colors.white.withValues(alpha: 0.25),
                                     ),
                                   ),
-                                  child: const Text(
-                                    '2k+',
+                                  child: Text(
+                                    "${(event.capacity.confirmedAttendees / 10).floor() * 10}+",
                                     style: TextStyle(color: Colors.white, fontSize: 12),
                                   ),
                                 ),

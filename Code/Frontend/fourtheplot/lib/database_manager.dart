@@ -312,6 +312,29 @@ class DatabaseHelper {
     return result.copyWith(data: list);
   }
 
+  Future<ApiResult> getTrendingEvents({bool useCache = true}) async {
+    const cacheKey = 'events';
+    final result = await _request('GET', 'events/trending/');
+    if (!result.success) {
+      if (useCache && _cache.containsKey(cacheKey)) {
+        return result.copyWith(
+          success: true,
+          status: 200,
+          message: 'offline-cache',
+          data: _cache[cacheKey]!.data,
+        );
+      }
+      return result;
+    }
+
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(Event.fromJson)
+        .toList();
+    _cache[cacheKey] = _CacheEntry(list);
+    return result.copyWith(data: list);
+  }
+
   Future<ApiResult> getEvent(int eventId) async {
     final result = await _request('GET', 'events/$eventId');
     if (!result.success || result.data is! Map<String, dynamic>) {
@@ -337,6 +360,22 @@ class DatabaseHelper {
       'GET',
       'events/nearby/search',
       query: {'lat': lat, 'lng': lng, 'radius': radius},
+    );
+    if (!result.success) {
+      return result;
+    }
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(Event.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> getSearchedEvents(String searchCriteria) async {
+    final result = await _request(
+      'GET',
+      'events/search',
+      query: {'q': searchCriteria},
     );
     if (!result.success) {
       return result;
