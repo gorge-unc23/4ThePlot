@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:fourtheplot/pages/signup/signup_page.dart';
 import 'package:fourtheplot/widgets/glassmorphism.dart';
@@ -15,10 +16,12 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+    String? _serverError;
   bool _obscurePassword = true;
 
   @override
   Widget build(BuildContext context) {
+
     return Container(
       decoration: const BoxDecoration(
         image: DecorationImage(
@@ -119,6 +122,7 @@ class _LoginPageState extends State<LoginPage> {
                                 hintStyle: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.6),
                                 ),
+                                errorText: _serverError,
                                 prefixIcon: Icon(
                                   Icons.lock_outline,
                                   color: Colors.white.withValues(alpha: 0.7),
@@ -187,18 +191,30 @@ class _LoginPageState extends State<LoginPage> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            Navigator.of(context).pushReplacement( // TODO: remove after tests this navigation
-                              MaterialPageRoute(builder: (context) => MainWrapper()),
-                            );
+                          onPressed: () async {
+                            setState(() {
+                              _serverError = "";
+                            });
 
-                            // if (_loginFormKey.currentState!.validate()) {
-                            //   Navigator.of(context).pop();
-                            //   Navigator.of(context).pushReplacement(
-                            //     MaterialPageRoute(builder: (context) => DiscoverPage()),
-                            //   );
-                            // }
+                            if (_loginFormKey.currentState!.validate() || true) { // TODO: Remove true after tests
+                              // ApiResult apiResult = await DatabaseHelper.instance.login(_emailController.text, _passwordController.text); // TODO: Reapply after tests
+                              ApiResult apiResult = await DatabaseHelper.instance.login("john.doe@example.com", "12345");
+
+                              if (!apiResult.success) {
+                                setState(() {
+                                  _serverError = "Invalid Credentials";
+                                });
+
+                                return;
+                              }
+
+                              if (context.mounted) {
+                                Navigator.of(context).pop();
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(builder: (context) => MainWrapper()),
+                                );
+                              }
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue.shade500,

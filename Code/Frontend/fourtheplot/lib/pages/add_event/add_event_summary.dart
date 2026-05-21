@@ -172,12 +172,9 @@ class AddEventSummaryPage extends StatelessWidget {
 					const SizedBox(height: 110),
 				],
 			),
-			bottomNavigationBar: SafeArea(
-				top: false,
-				child: _BottomActionBar(
-					label: 'Create event',
-					onPressed: () => _handleCreate(context, draft),
-				),
+			bottomNavigationBar: _BottomActionBar(
+				label: 'Create event',
+				onPressed: () => _handleCreate(context, draft),
 			),
 		);
 	}

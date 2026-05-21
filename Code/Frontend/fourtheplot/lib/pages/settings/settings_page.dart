@@ -1,4 +1,7 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
+import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/pages/landing/landing_page.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -127,7 +130,9 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       subtitle: Text(subtitle, style: const TextStyle(color: Colors.white54)),
       trailing: const Icon(Icons.chevron_right, color: Colors.white54),
-      onTap: () {},
+      onTap: () {
+        
+      },
     );
   }
 

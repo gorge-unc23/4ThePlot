@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:fourtheplot/common/colors.dart';
+import 'package:fourtheplot/mock/mock_comments.dart';
 import 'package:fourtheplot/models/comment.dart';
 import 'package:fourtheplot/models/event.dart';
 import 'package:fourtheplot/models/user.dart';
@@ -43,7 +44,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     super.initState();
     _pageController = PageController();
     _bannerImages = _buildBannerImages(widget.event.coverImageUrl);
-    _comments = _buildMockComments(widget.event.id);
+    _comments = mockComments;
     _currentUser = _buildCurrentUser();
     _commentController = TextEditingController();
     _commentFocusNode = FocusNode();
@@ -109,71 +110,13 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     ];
   }
 
-  List<Comment> _buildMockComments(String eventId) {
-    final now = DateTime.now();
-    final userA = User(
-      id: 'user_01',
-      displayName: 'Alma K.',
-      email: 'alma@example.com',
-      roles: const [UserRole.goer],
-      status: UserStatus.active,
-      createdAt: now.subtract(const Duration(days: 120)),
-      updatedAt: now.subtract(const Duration(days: 2)),
-    );
-    final userB = User(
-      id: 'user_02',
-      displayName: 'Erion D.',
-      email: 'erion@example.com',
-      roles: const [UserRole.goer],
-      status: UserStatus.active,
-      createdAt: now.subtract(const Duration(days: 90)),
-      updatedAt: now.subtract(const Duration(days: 1)),
-    );
-    final userC = User(
-      id: 'user_03',
-      displayName: 'Luna P.',
-      email: 'luna@example.com',
-      roles: const [UserRole.goer],
-      status: UserStatus.active,
-      createdAt: now.subtract(const Duration(days: 180)),
-      updatedAt: now.subtract(const Duration(days: 4)),
-    );
-
-    return [
-      Comment(
-        id: 'comment_01',
-        userId: userA.id,
-        eventId: eventId,
-        text: 'Love the lineup so far. The venue looks amazing.',
-        createdAt: now.subtract(const Duration(hours: 5)),
-        author: userA,
-      ),
-      Comment(
-        id: 'comment_02',
-        userId: userB.id,
-        eventId: eventId,
-        text: 'Anyone else coming from Durres? Happy to carpool.',
-        createdAt: now.subtract(const Duration(days: 1, hours: 2)),
-        author: userB,
-      ),
-      Comment(
-        id: 'comment_03',
-        userId: userC.id,
-        eventId: eventId,
-        text: 'The last edition was legendary. Do not miss this.',
-        createdAt: now.subtract(const Duration(days: 2, hours: 6)),
-        author: userC,
-      ),
-    ];
-  }
-
   User _buildCurrentUser() {
     final now = DateTime.now();
     return User(
       id: 'user_current',
       displayName: 'You',
       email: 'you@example.com',
-      roles: const [UserRole.goer],
+      role: UserRole.goer,
       status: UserStatus.active,
       createdAt: now.subtract(const Duration(days: 30)),
       updatedAt: now,

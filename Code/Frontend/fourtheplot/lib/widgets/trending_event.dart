@@ -24,7 +24,7 @@ class TrendingEvent extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         child: Stack(
           children: [
-            Image.asset(
+            Image.network(
               event.coverImageUrl,
               width: double.infinity,
               fit: BoxFit.cover,

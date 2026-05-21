@@ -233,10 +233,10 @@ class Event {
 
 	factory Event.fromJson(Map<String, dynamic> json) {
 		return Event(
-			id: (json['id'] as String?) ?? '',
+			id: json['id'].toString(),
 			title: (json['title'] as String?) ?? '',
 			description: (json['description'] as String?) ?? '',
-			hostId: (json['hostId'] as String?) ?? '',
+			hostId: json['hostId'].toString(),
 			hostName: json['hostName'] as String?,
 			status: eventStatusFromString((json['status'] as String?) ?? 'draft'),
 			startAt: DateTime.parse(json['startAt'] as String),

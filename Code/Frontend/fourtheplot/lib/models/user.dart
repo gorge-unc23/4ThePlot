@@ -1,3 +1,7 @@
+import 'package:fourtheplot/models/business_profile_summary.dart';
+import 'package:fourtheplot/models/goer_preferences.dart';
+import 'package:fourtheplot/models/host_credibility_summary.dart';
+
 enum UserRole {
     goer,
     business,
@@ -58,104 +62,13 @@ String userStatusToString(UserStatus status) {
     }
 }
 
-class GoerPreferences {
-    final List<String> categories;
-    final DateTime updatedAt;
-
-    const GoerPreferences({
-        required this.categories,
-        required this.updatedAt,
-    });
-
-    factory GoerPreferences.fromJson(Map<String, dynamic> json) {
-        return GoerPreferences(
-            categories: (json['categories'] as List<dynamic>?)
-                    ?.map((e) => e as String)
-                    .toList() ??
-                    const [],
-            updatedAt: DateTime.parse(json['updatedAt'] as String),
-        );
-    }
-
-    Map<String, dynamic> toJson() {
-        return {
-            'categories': categories,
-            'updatedAt': updatedAt.toIso8601String(),
-        };
-    }
-}
-
-class BusinessProfileSummary {
-    final String name;
-    final String? description;
-    final String? websiteUrl;
-    final String? logoUrl;
-    final bool isPublished;
-
-    const BusinessProfileSummary({
-        required this.name,
-        this.description,
-        this.websiteUrl,
-        this.logoUrl,
-        required this.isPublished,
-    });
-
-    factory BusinessProfileSummary.fromJson(Map<String, dynamic> json) {
-        return BusinessProfileSummary(
-            name: (json['name'] as String?) ?? '',
-            description: json['description'] as String?,
-            websiteUrl: json['websiteUrl'] as String?,
-            logoUrl: json['logoUrl'] as String?,
-            isPublished: (json['isPublished'] as bool?) ?? false,
-        );
-    }
-
-    Map<String, dynamic> toJson() {
-        return {
-            'name': name,
-            'description': description,
-            'websiteUrl': websiteUrl,
-            'logoUrl': logoUrl,
-            'isPublished': isPublished,
-        };
-    }
-}
-
-class HostCredibilitySummary {
-    final double? rating;
-    final int? reviewCount;
-    final bool? trusted;
-
-    const HostCredibilitySummary({
-        this.rating,
-        this.reviewCount,
-        this.trusted,
-    });
-
-    factory HostCredibilitySummary.fromJson(Map<String, dynamic> json) {
-        return HostCredibilitySummary(
-            rating: (json['rating'] as num?)?.toDouble(),
-            reviewCount: json['reviewCount'] as int?,
-            trusted: json['trusted'] as bool?,
-        );
-    }
-
-    Map<String, dynamic> toJson() {
-        return {
-            'rating': rating,
-            'reviewCount': reviewCount,
-            'trusted': trusted,
-        };
-    }
-}
-
 class User {
     final String id;
     final String displayName;
     final String email;
     final String? phone;
     final String? avatarUrl;
-    final List<UserRole> roles;
+    final UserRole role;
     final UserStatus status;
     final GoerPreferences? goerPreferences;
     final BusinessProfileSummary? businessProfile;
@@ -169,7 +82,7 @@ class User {
         required this.email,
         this.phone,
         this.avatarUrl,
-        required this.roles,
+        required this.role,
         required this.status,
         this.goerPreferences,
         this.businessProfile,
@@ -184,7 +97,7 @@ class User {
         String? email,
         String? phone,
         String? avatarUrl,
-        List<UserRole>? roles,
+        UserRole? role,
         UserStatus? status,
         GoerPreferences? goerPreferences,
         BusinessProfileSummary? businessProfile,
@@ -198,7 +111,7 @@ class User {
             email: email ?? this.email,
             phone: phone ?? this.phone,
             avatarUrl: avatarUrl ?? this.avatarUrl,
-            roles: roles ?? this.roles,
+            role: role ?? this.role,
             status: status ?? this.status,
             goerPreferences: goerPreferences ?? this.goerPreferences,
             businessProfile: businessProfile ?? this.businessProfile,
@@ -215,10 +128,7 @@ class User {
             email: (json['email'] as String?) ?? '',
             phone: json['phone'] as String?,
             avatarUrl: json['avatarUrl'] as String?,
-            roles: (json['roles'] as List<dynamic>?)
-                            ?.map((e) => userRoleFromString(e as String))
-                            .toList() ??
-                    const [],
+            role: userRoleFromString(json['role'] as String),
             status: userStatusFromString((json['status'] as String?) ?? 'active'),
             goerPreferences: json['goerPreferences'] != null
                     ? GoerPreferences.fromJson(
@@ -247,7 +157,7 @@ class User {
             'email': email,
             'phone': phone,
             'avatarUrl': avatarUrl,
-            'roles': roles.map(userRoleToString).toList(),
+            'role': role,
             'status': userStatusToString(status),
             'goerPreferences': goerPreferences?.toJson(),
             'businessProfile': businessProfile?.toJson(),
