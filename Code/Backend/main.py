@@ -1,7 +1,21 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from routers import events, comments as comments_router, registration as registration_router, user as user_router, authentication as authentication_router
-from models import event, comments, registration, user
+from models import (
+    event,
+    comments,
+    registration,
+    user,
+    category,
+    tag,
+    event_location,
+    event_capacity,
+    recurrence,
+    goer_preferences,
+    business_profile,
+    host_credibility,
+)
 from database import engine, Base
 
 app = FastAPI()
@@ -25,3 +39,4 @@ app.include_router(comments_router.router)
 app.include_router(registration_router.router)
 app.include_router(user_router.router)
 app.include_router(authentication_router.router)
+app.mount("/photos", StaticFiles(directory="photos"), name="photos")
