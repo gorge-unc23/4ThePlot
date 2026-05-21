@@ -132,6 +132,36 @@ class AddEventDraft extends ChangeNotifier {
   String categoriesText() => categories.join(', ');
   String tagsText() => tags.join(', ');
 
+  Map<String, dynamic> toCreatePayload({
+    required int hostId,
+    required String coverImageUrl,
+  }) {
+    return {
+      'title': title,
+      'description': description,
+      'hostId': hostId,
+      'status': 'published',
+      'startAt': startAt!.toIso8601String(),
+      'endAt': endAt!.toIso8601String(),
+      'location': {
+        'address': locationAddress,
+        'venueName': venueName.isEmpty ? null : venueName,
+        'latitude': null,
+        'longitude': null,
+      },
+      'capacity': {
+        'maxAttendees': capacityMax,
+        'confirmedAttendees': 0,
+        'waitlistEnabled': false,
+      },
+      'categories': categories,
+      'tags': tags,
+      'price': isFree ? 0.0 : price,
+      'currency': currency,
+      'coverImageUrl': coverImageUrl,
+    };
+  }
+
   static List<String> _splitList(String value) {
     return value
         .split(',')

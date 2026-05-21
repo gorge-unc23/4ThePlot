@@ -7,6 +7,8 @@ import 'package:fourtheplot/models/comment.dart';
 import 'package:fourtheplot/models/event.dart';
 import 'package:fourtheplot/models/user.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ApiResult {
   final bool success;
@@ -160,10 +162,7 @@ class DatabaseHelper {
   }
 
   Future<void> clearSession() async {
-    await Future.wait([
-      clearAuthToken(),
-      clearStoredUser(),
-    ]);
+    await Future.wait([clearAuthToken(), clearStoredUser()]);
   }
 
   Map<String, String> _headers({bool json = true, bool authenticated = true}) {
@@ -250,6 +249,46 @@ class DatabaseHelper {
     }
   }
 
+  Future<ApiResult> _multipartRequest(
+    String method,
+    String path, {
+    required List<http.MultipartFile> files,
+    Map<String, String>? fields,
+    bool authenticated = true,
+  }) async {
+    final uri = _apiUri(path);
+    try {
+      if (authenticated) {
+        await _loadStoredToken();
+      }
+
+      final request = http.MultipartRequest(method, uri);
+      request.headers.addAll(_headers(json: false, authenticated: authenticated));
+      request.fields.addAll(fields ?? const {});
+      request.files.addAll(files);
+
+      final streamedResponse = await request.send().timeout(_requestTimeout);
+      final response = await http.Response.fromStream(streamedResponse);
+      final decoded = _decodeJson(response.body);
+      final message = _extractMessage(decoded, response.statusCode);
+      final success = response.statusCode >= 200 && response.statusCode < 300;
+
+      if (response.statusCode == 401 && authenticated) {
+        await clearAuthToken();
+      }
+
+      return ApiResult(
+        success: success,
+        status: response.statusCode,
+        message: message,
+        data: decoded,
+      );
+    } catch (error, stackTrace) {
+      log('Multipart API request failed', error: error, stackTrace: stackTrace);
+      return ApiResult(success: false, status: -1, message: 'network-error');
+    }
+  }
+
   dynamic _decodeJson(String body) {
     if (body.isEmpty) {
       return null;
@@ -310,10 +349,7 @@ class DatabaseHelper {
       MainWrapper.loggedInUser = user;
     }
 
-    return result.copyWith(
-      data: user ?? token,
-      token: token.accessToken,
-    );
+    return result.copyWith(data: user ?? token, token: token.accessToken);
   }
 
   User? _extractUserFromLogin(Map<String, dynamic> payload) {
@@ -415,6 +451,43 @@ class DatabaseHelper {
     return _request('POST', 'events/', body: payload);
   }
 
+  Future<ApiResult> uploadCoverImage(XFile image) async {
+    final bytes = await image.readAsBytes();
+    final file = http.MultipartFile.fromBytes(
+      'photo',
+      bytes,
+      filename: image.name,
+      contentType: _imageContentType(image.name),
+    );
+    final result = await _multipartRequest('POST', 'events/photos', files: [file]);
+    if (!result.success || result.data is! Map<String, dynamic>) {
+      return result;
+    }
+
+    final payload = result.data as Map<String, dynamic>;
+    final coverImageUrl = payload['coverImageUrl'] as String?;
+    if (coverImageUrl == null || coverImageUrl.isEmpty) {
+      return result.copyWith(success: false, message: 'missing-cover-image-url');
+    }
+
+    return result.copyWith(data: coverImageUrl);
+  }
+
+  MediaType _imageContentType(String filename) {
+    final extension = filename.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+        return MediaType('image', 'jpeg');
+      case 'png':
+        return MediaType('image', 'png');
+      case 'webp':
+        return MediaType('image', 'webp');
+      default:
+        return MediaType('application', 'octet-stream');
+    }
+  }
+
   Future<ApiResult> updateEvent(int eventId, Map<String, dynamic> payload) async {
     return _request('PUT', 'events/$eventId', body: payload);
   }
@@ -440,11 +513,7 @@ class DatabaseHelper {
   }
 
   Future<ApiResult> getSearchedEvents(String searchCriteria) async {
-    final result = await _request(
-      'GET',
-      'events/search',
-      query: {'q': searchCriteria},
-    );
+    final result = await _request('GET', 'events/search', query: {'q': searchCriteria});
     if (!result.success) {
       return result;
     }
@@ -456,10 +525,7 @@ class DatabaseHelper {
   }
 
   Future<ApiResult> getCityEvents(String city) async {
-    final result = await _request(
-      'GET',
-      'events/city/$city',
-    );
+    final result = await _request('GET', 'events/city/$city');
     if (!result.success) {
       return result;
     }
@@ -471,10 +537,19 @@ class DatabaseHelper {
   }
 
   Future<ApiResult> getRegisteredEvents(int userId) async {
-    final result = await _request(
-      'GET',
-      'events/registered/$userId',
-    );
+    final result = await _request('GET', 'events/registered/$userId');
+    if (!result.success) {
+      return result;
+    }
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(Event.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> getEventsByHostId(int hostId) async {
+    final result = await _request('GET', 'events/host/$hostId');
     if (!result.success) {
       return result;
     }
