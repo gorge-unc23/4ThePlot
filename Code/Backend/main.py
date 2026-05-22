@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from routers import events, comments as comments_router, registration as registration_router, user as user_router, authentication as authentication_router
+from routers import admin as admin_router, events, comments as comments_router, registration as registration_router, user as user_router, authentication as authentication_router
 from models import (
+    admin,
     event,
     comments,
     registration,
@@ -39,4 +40,5 @@ app.include_router(comments_router.router)
 app.include_router(registration_router.router)
 app.include_router(user_router.router)
 app.include_router(authentication_router.router)
+app.include_router(admin_router.router)
 app.mount("/photos", StaticFiles(directory="photos"), name="photos")

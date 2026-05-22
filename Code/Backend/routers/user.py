@@ -1,6 +1,7 @@
 from fastapi import APIRouter,Depends,Request,Response,status,HTTPException
-from typing import Optional
-from sqlalchemy.orm import Session
+from typing import List, Optional
+from sqlalchemy import or_
+from sqlalchemy.orm import Session, joinedload
 from schemas.user import UserCreate,UserLogin,UserShow,UserUpdate
 from models.user import User
 from models.category import Category
@@ -30,10 +31,37 @@ def get_or_create_category(name: str, db: Session) -> Category:
     db.flush()
     return category
 
+
+def user_load_options():
+    return (
+        joinedload(User.goer_preferences),
+        joinedload(User.business_profile),
+        joinedload(User.host_credibility),
+    )
+
+
+# Get not trusted users
+@router.get('/not-trusted', status_code=200, response_model=List[UserShow])
+def get_not_trusted_users(db: Session = Depends(get_db), current_user: UserShow = Depends(get_current_user)):
+    users = (
+        db.query(User)
+        .outerjoin(User.host_credibility)
+        .options(*user_load_options())
+        .filter(
+            or_(
+                HostCredibility.trusted == False,
+                HostCredibility.trusted.is_(None),
+            )
+        )
+        .all()
+    )
+    return users
+
+
 # Get a specific user
 @router.get('/{user_id}', status_code=200, response_model=UserShow)
 def get_user(user_id: int, db: Session = Depends(get_db),current_user: UserShow = Depends(get_current_user)):
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).options(*user_load_options()).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User with id:{user_id} does not exist!')
     return user
