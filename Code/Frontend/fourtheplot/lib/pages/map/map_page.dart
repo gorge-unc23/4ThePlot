@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/models/event.dart';
+import 'package:fourtheplot/models/user.dart';
 import 'package:fourtheplot/pages/event_details/event_details_page.dart';
+import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -44,7 +46,10 @@ class _MapPageState extends State<MapPage> {
       _errorMessage = null;
     });
 
-    final result = await DatabaseHelper.instance.getAllEvents();
+    final isBusiness = MainWrapper.loggedInUser.role == UserRole.business;
+    final result = isBusiness
+        ? await DatabaseHelper.instance.getEventsByHostId(MainWrapper.loggedInUser.id)
+        : await DatabaseHelper.instance.getAllEvents();
     if (!mounted) {
       return;
     }

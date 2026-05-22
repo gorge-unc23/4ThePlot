@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/models/event.dart';
+import 'package:fourtheplot/models/user.dart';
 import 'package:fourtheplot/pages/event_details/event_details_page.dart';
 import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:fourtheplot/pages/settings/settings_page.dart';
@@ -26,6 +27,17 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadProfileEvents() async {
+    if (MainWrapper.loggedInUser.role == UserRole.business ||
+        MainWrapper.loggedInUser.role == UserRole.admin) {
+      setState(() {
+        _hostedEvents = const [];
+        _upcomingJoinedEvents = const [];
+        _isLoading = false;
+        _errorMessage = null;
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -126,8 +138,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 ],
               ),
               const SizedBox(height: 20),
-              _buildStatsPill(),
-              const SizedBox(height: 20),
+              if (MainWrapper.loggedInUser.role != UserRole.business &&
+                  MainWrapper.loggedInUser.role != UserRole.admin) ...[
+                _buildStatsPill(),
+                const SizedBox(height: 20),
+              ],
               _buildContent(),
             ],
           ),
@@ -137,6 +152,14 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildContent() {
+    if (MainWrapper.loggedInUser.role == UserRole.business) {
+      return _buildBusinessProfileContent();
+    }
+
+    if (MainWrapper.loggedInUser.role == UserRole.admin) {
+      return _buildAdminProfileContent();
+    }
+
     if (_isLoading) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 48),
@@ -180,6 +203,290 @@ class _ProfilePageState extends State<ProfilePage> {
           events: _upcomingJoinedEvents,
         ),
       ],
+    );
+  }
+
+  Widget _buildBusinessProfileContent() {
+    final businessProfile = MainWrapper.loggedInUser.businessProfile;
+    final name = businessProfile?.name.isNotEmpty == true
+        ? businessProfile!.name
+        : MainWrapper.loggedInUser.displayName;
+    final description = businessProfile?.description?.trim();
+    final websiteUrl = businessProfile?.websiteUrl?.trim();
+    final isPublished = businessProfile?.isPublished ?? false;
+    final hostCredibility = MainWrapper.loggedInUser.hostCredibility;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1B1F),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _buildBusinessLogo(businessProfile?.logoUrl),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isPublished
+                          ? 'Published business profile'
+                          : 'Draft business profile',
+                      style: TextStyle(
+                        color: (isPublished ? const Color(0xFF22D3EE) : Colors.white)
+                            .withValues(alpha: isPublished ? 1 : 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (description != null && description.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              description,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.75), height: 1.45),
+            ),
+          ],
+          if (websiteUrl != null && websiteUrl.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Icon(
+                  Icons.language,
+                  size: 16,
+                  color: Colors.white.withValues(alpha: 0.65),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    websiteUrl,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.75)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 16),
+          _buildHostCredibilitySummary(
+            rating: hostCredibility?.rating,
+            reviewCount: hostCredibility?.reviewCount,
+            trusted: hostCredibility?.trusted,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminProfileContent() {
+    final user = MainWrapper.loggedInUser;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1B1F),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6EA8FF).withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(Icons.admin_panel_settings, color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Administrator',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Platform moderation access',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildAdminInfoRow('Name', user.displayName),
+          _buildAdminInfoRow('Email', user.email),
+          _buildAdminInfoRow('Role', userRoleToString(user.role)),
+          _buildAdminInfoRow('Status', userStatusToString(user.status)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 76,
+            child: Text(
+              label,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.55)),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHostCredibilitySummary({
+    required double? rating,
+    required int? reviewCount,
+    required bool? trusted,
+  }) {
+    final clampedRating = (rating ?? 0).clamp(0, 5).toDouble();
+    final fullStars = clampedRating.floor();
+    final hasHalfStar = clampedRating - fullStars >= 0.5 && fullStars < 5;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.verified_user, color: Color(0xFF22D3EE), size: 18),
+              const SizedBox(width: 8),
+              const Text(
+                'Host credibility',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              ),
+              const Spacer(),
+              if (trusted == true)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF22D3EE).withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Trusted',
+                    style: TextStyle(
+                      color: Color(0xFF22D3EE),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              ...List.generate(5, (index) {
+                IconData icon;
+                if (index < fullStars) {
+                  icon = Icons.star;
+                } else if (index == fullStars && hasHalfStar) {
+                  icon = Icons.star_half;
+                } else {
+                  icon = Icons.star_border;
+                }
+                return Icon(icon, size: 20, color: const Color(0xFFFACC15));
+              }),
+              const SizedBox(width: 10),
+              Text(
+                clampedRating.toStringAsFixed(1),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '(${reviewCount ?? 0} reviews)',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBusinessLogo(String? logoUrl) {
+    if (logoUrl == null || logoUrl.isEmpty) {
+      return Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          color: const Color(0xFF22D3EE).withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Icon(Icons.storefront, color: Colors.white),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Image.network(
+        logoUrl,
+        width: 56,
+        height: 56,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: 56,
+          height: 56,
+          color: const Color(0xFF22D3EE).withValues(alpha: 0.18),
+          child: const Icon(Icons.storefront, color: Colors.white),
+        ),
+      ),
     );
   }
 

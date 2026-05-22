@@ -4,8 +4,15 @@ import 'package:intl/intl.dart';
 
 class CommentCard extends StatelessWidget {
   final Comment comment;
+  final VoidCallback? onDelete;
+  final bool isDeleting;
 
-  const CommentCard({super.key, required this.comment});
+  const CommentCard({
+    super.key,
+    required this.comment,
+    this.onDelete,
+    this.isDeleting = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +61,30 @@ class CommentCard extends StatelessWidget {
                         fontSize: 11,
                       ),
                     ),
+                    if (onDelete != null) ...[
+                      const SizedBox(width: 4),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
+                        padding: EdgeInsets.zero,
+                        onPressed: isDeleting ? null : onDelete,
+                        tooltip: 'Delete comment',
+                        icon: isDeleting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(
+                                Icons.delete_outline,
+                                color: Colors.redAccent,
+                                size: 18,
+                              ),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 6),

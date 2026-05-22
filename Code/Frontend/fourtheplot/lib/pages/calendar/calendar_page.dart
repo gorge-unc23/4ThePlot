@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/models/event.dart';
+import 'package:fourtheplot/models/user.dart';
 import 'package:fourtheplot/pages/event_details/event_details_page.dart';
 import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:intl/intl.dart';
@@ -73,8 +74,16 @@ class _CalendarPageState extends State<CalendarPage> {
       _errorMessage = null;
     });
 
+    final isBusiness = MainWrapper.loggedInUser.role == UserRole.business;
     final result = _scope == CalendarScope.city
-        ? await DatabaseHelper.instance.getCityEvents(_selectedCity)
+        ? isBusiness
+              ? await DatabaseHelper.instance.getCityHostEvents(
+                  _selectedCity,
+                  MainWrapper.loggedInUser.id,
+                )
+              : await DatabaseHelper.instance.getCityEvents(_selectedCity)
+        : isBusiness
+        ? await DatabaseHelper.instance.getEventsByHostId(MainWrapper.loggedInUser.id)
         : await DatabaseHelper.instance.getRegisteredEvents(MainWrapper.loggedInUser.id);
 
     if (!mounted) {
@@ -91,7 +100,8 @@ class _CalendarPageState extends State<CalendarPage> {
     }
 
     if (!mounted) return;
-    final loadedEvents = (result.data as List<Event>)..sort((a, b) => a.startAt.compareTo(b.startAt));
+    final loadedEvents = (result.data as List<Event>)
+      ..sort((a, b) => a.startAt.compareTo(b.startAt));
     setState(() {
       _eventsByDate = _buildEventsIndex(loadedEvents);
       _isLoading = false;
@@ -186,9 +196,7 @@ class _CalendarPageState extends State<CalendarPage> {
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 32),
                       ),
                       Text(
-                        _scope == CalendarScope.city
-                            ? "Search in cities for events"
-                            : "Showing events you joined",
+                        _calendarSubtitle,
                         style: const TextStyle(fontSize: 14, color: Colors.grey),
                       ),
                     ],
@@ -258,7 +266,8 @@ class _CalendarPageState extends State<CalendarPage> {
                   onChanged: _onCityChanged,
                 ),
               const SizedBox(height: 16),
-              if ((_scope == CalendarScope.my && _eventsByDate.isNotEmpty) || _scope == CalendarScope.city) ...[
+              if ((_scope == CalendarScope.my && _eventsByDate.isNotEmpty) ||
+                  _scope == CalendarScope.city) ...[
                 _buildMonthHeader(),
                 const SizedBox(height: 12),
                 _buildWeekdayRow(),
@@ -278,11 +287,10 @@ class _CalendarPageState extends State<CalendarPage> {
                 _buildAgendaHeader(),
                 const SizedBox(height: 8),
                 _buildAgendaList(),
-              ]
-              else ...[
+              ] else ...[
                 Center(
                   child: Text(
-                    "You are not joined in any event.",
+                    _emptyCalendarMessage,
                     style: TextStyle(color: Colors.grey),
                   ),
                 ),
@@ -346,9 +354,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
     return Container(
       padding: EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
       child: GridView.builder(
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -479,10 +485,7 @@ class _CalendarPageState extends State<CalendarPage> {
               style: const TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 10),
-            OutlinedButton(
-              onPressed: _loadEvents,
-              child: const Text('Try again'),
-            ),
+            OutlinedButton(onPressed: _loadEvents, child: const Text('Try again')),
           ],
         ),
       );
@@ -504,9 +507,7 @@ class _CalendarPageState extends State<CalendarPage> {
         return InkWell(
           onTap: () {
             Navigator.of(context).push(
-              MaterialPageRoute(
-                  builder: (context) => EventDetailsPage(event: event),
-              ),
+              MaterialPageRoute(builder: (context) => EventDetailsPage(event: event)),
             );
           },
           child: Container(
@@ -520,7 +521,10 @@ class _CalendarPageState extends State<CalendarPage> {
               children: [
                 Text(
                   event.title,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -539,8 +543,13 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   Widget _buildEmptyState() {
+    final isBusiness = MainWrapper.loggedInUser.role == UserRole.business;
     final message = _scope == CalendarScope.city
-        ? 'No events on ${DateFormat('MMM d').format(_selectedDate)} in $_selectedCity.'
+        ? isBusiness
+              ? 'No hosted events on ${DateFormat('MMM d').format(_selectedDate)} in $_selectedCity.'
+              : 'No events on ${DateFormat('MMM d').format(_selectedDate)} in $_selectedCity.'
+        : isBusiness
+        ? 'No hosted events on ${DateFormat('MMM d').format(_selectedDate)}.'
         : 'No joined events on ${DateFormat('MMM d').format(_selectedDate)}.';
 
     return Center(
@@ -552,12 +561,28 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
+  String get _calendarSubtitle {
+    final isBusiness = MainWrapper.loggedInUser.role == UserRole.business;
+    if (_scope == CalendarScope.city) {
+      return isBusiness ? 'Hosted events by city' : 'Search in cities for events';
+    }
+    return isBusiness ? 'Showing events you host' : 'Showing events you joined';
+  }
+
+  String get _emptyCalendarMessage {
+    return MainWrapper.loggedInUser.role == UserRole.business
+        ? 'Your business is not hosting any events.'
+        : 'You are not joined in any event.';
+  }
+
   DateTime _monthFromPage(int page) {
     return DateTime(_baseMonth.year, _baseMonth.month + (page - _initialPage));
   }
 
   int _pageFromMonth(DateTime month) {
-    return _initialPage + (month.year - _baseMonth.year) * 12 + (month.month - _baseMonth.month);
+    return _initialPage +
+        (month.year - _baseMonth.year) * 12 +
+        (month.month - _baseMonth.month);
   }
 
   DateTime _dateKey(DateTime date) => DateTime(date.year, date.month, date.day);

@@ -196,9 +196,9 @@ class _LoginPageState extends State<LoginPage> {
                               _serverError = "";
                             });
 
-                            if (_loginFormKey.currentState!.validate() || true) { // TODO: Remove true after tests
-                              // ApiResult apiResult = await DatabaseHelper.instance.login(_emailController.text, _passwordController.text); // TODO: Reapply after tests
-                              ApiResult apiResult = await DatabaseHelper.instance.login("john.doe@example.com", "12345");
+                            if (_loginFormKey.currentState!.validate()) { // TODO: Remove true after tests
+                              ApiResult apiResult = await DatabaseHelper.instance.login(_emailController.text, _passwordController.text); // TODO: Reapply after tests
+                              // ApiResult apiResult = await DatabaseHelper.instance.login("admin@admin.com", "12345");
 
                               if (!apiResult.success) {
                                 setState(() {

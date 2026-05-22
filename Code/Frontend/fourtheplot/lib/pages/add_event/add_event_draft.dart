@@ -159,6 +159,7 @@ class AddEventDraft extends ChangeNotifier {
   Map<String, dynamic> toCreatePayload({
     required int hostId,
     required String coverImageUrl,
+    required String hostname,
   }) {
     return {
       'title': title,
@@ -167,6 +168,7 @@ class AddEventDraft extends ChangeNotifier {
       'status': 'published',
       'startAt': startAt!.toIso8601String(),
       'endAt': endAt!.toIso8601String(),
+      'hostName': hostname,
       'location': {
         'address': locationAddress,
         'venueName': venueName.isEmpty ? null : venueName,
@@ -184,6 +186,7 @@ class AddEventDraft extends ChangeNotifier {
       'price': isFree ? 0.0 : price,
       'currency': currency,
       'coverImageUrl': coverImageUrl,
+      'trending': false,
     };
   }
 

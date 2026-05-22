@@ -6,7 +6,6 @@ import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/models/event.dart';
 import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:fourtheplot/widgets/info_card.dart';
-import 'package:fourtheplot/widgets/quantity_button.dart';
 import 'package:fourtheplot/widgets/tag_chip.dart';
 import 'package:intl/intl.dart';
 
@@ -20,7 +19,7 @@ class JoinEventPage extends StatefulWidget {
 }
 
 class _JoinEventPageState extends State<JoinEventPage> {
-  int _ticketCount = 1;
+  final int _ticketCount = 1;
   bool _isSubmitting = false;
 
   final TextEditingController _cardNumberController = TextEditingController();
@@ -39,21 +38,6 @@ class _JoinEventPageState extends State<JoinEventPage> {
     _cvvController.dispose();
     _nameController.dispose();
     super.dispose();
-  }
-
-  void _incrementTickets() {
-    setState(() {
-      _ticketCount += 1;
-    });
-  }
-
-  void _decrementTickets() {
-    if (_ticketCount <= 1) {
-      return;
-    }
-    setState(() {
-      _ticketCount -= 1;
-    });
   }
 
   String _formatPrice(double value) {

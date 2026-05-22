@@ -50,6 +50,9 @@ class _AddEventSummaryPageState extends State<AddEventSummaryPage> {
       draft.toCreatePayload(
         hostId: MainWrapper.loggedInUser.id,
         coverImageUrl: photoResult.data as String,
+        hostname: MainWrapper.loggedInUser.businessProfile == null
+            ? MainWrapper.loggedInUser.displayName
+            : MainWrapper.loggedInUser.businessProfile!.name,
       ),
     );
     if (!mounted) {

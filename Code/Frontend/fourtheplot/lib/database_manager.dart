@@ -69,12 +69,14 @@ class DatabaseHelper {
   static const _accessTokenKey = 'auth.accessToken';
   static const _tokenTypeKey = 'auth.tokenType';
   static const _userKey = 'auth.user';
+  static const _serverIpKey = 'server.ip';
   static const _requestTimeout = Duration(seconds: 20);
-
-  String serverIp = const String.fromEnvironment(
+  static const _defaultServerIp = String.fromEnvironment(
     'SERVER_IP',
     defaultValue: '192.168.100.8:8000',
   );
+
+  String serverIp = _defaultServerIp;
 
   DatabaseHelper._privateConstructor();
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
@@ -111,6 +113,31 @@ class DatabaseHelper {
     _accessToken = await _secureStorage.read(key: _accessTokenKey);
     _tokenType = await _secureStorage.read(key: _tokenTypeKey);
     _loadedStoredToken = true;
+  }
+
+  Future<void> loadServerIp() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedServerIp = prefs.getString(_serverIpKey)?.trim();
+    if (savedServerIp != null && savedServerIp.isNotEmpty) {
+      serverIp = _normalizeServerIp(savedServerIp);
+    }
+  }
+
+  Future<void> saveServerIp(String value) async {
+    final normalizedServerIp = _normalizeServerIp(value);
+    serverIp = normalizedServerIp;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_serverIpKey, normalizedServerIp);
+  }
+
+  String _normalizeServerIp(String value) {
+    var normalized = value.trim();
+    normalized = normalized.replaceFirst(RegExp(r'^https?://'), '');
+    while (normalized.endsWith('/')) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+    return normalized;
   }
 
   Future<void> setAuthToken(String token, {String tokenType = 'bearer'}) async {
@@ -390,6 +417,30 @@ class DatabaseHelper {
     return _request('PUT', 'user/$userId', body: payload);
   }
 
+  Future<ApiResult> getNotTrustedUsers() async {
+    final result = await _request('GET', 'user/not-trusted');
+    if (!result.success) {
+      return result;
+    }
+
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(User.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> markUserAsTrusted(User user) async {
+    final credibility = user.hostCredibility;
+    return updateUser(user.id, {
+      'host_credibility': {
+        'rating': credibility?.rating,
+        'review_count': credibility?.reviewCount,
+        'trusted': true,
+      },
+    });
+  }
+
   Future<ApiResult> deleteUser(int userId) async {
     return _request('DELETE', 'user/$userId');
   }
@@ -527,6 +578,18 @@ class DatabaseHelper {
 
   Future<ApiResult> getCityEvents(String city) async {
     final result = await _request('GET', 'events/city/$city');
+    if (!result.success) {
+      return result;
+    }
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(Event.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> getCityHostEvents(String city, int hostId) async {
+    final result = await _request('GET', 'events/host/$hostId/city/$city');
     if (!result.success) {
       return result;
     }

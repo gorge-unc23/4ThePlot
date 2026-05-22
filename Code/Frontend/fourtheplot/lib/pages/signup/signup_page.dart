@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/pages/discover/discover_page.dart';
 import 'package:fourtheplot/pages/login/login_page.dart';
 import 'package:fourtheplot/widgets/glassmorphism.dart';
@@ -17,6 +18,46 @@ class _SignupPageState extends State<SignupPage> {
   final TextEditingController _confirmPasswordController = TextEditingController();
 
   bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  bool get _isServerConfigMode {
+    return _emailController.text.trim().toLowerCase() == 'server';
+  }
+
+  Future<void> _handleSignupPressed() async {
+    if (!_loginFormKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_isServerConfigMode) {
+      await DatabaseHelper.instance.saveServerIp(_passwordController.text);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Server set to ${DatabaseHelper.instance.serverIp}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => LoginPage()),
+      );
+      return;
+    }
+
+    Navigator.of(context).pop();
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => DiscoverPage()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,6 +140,9 @@ class _SignupPageState extends State<SignupPage> {
                                 ),
                               ),
                               validator: (value) {
+                                if ((value ?? '').trim().toLowerCase() == 'server') {
+                                  return null;
+                                }
                                 final emailRegExp = RegExp(
                                   r"^[a-zA-Z0-9.]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
                                 );
@@ -164,7 +208,9 @@ class _SignupPageState extends State<SignupPage> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Password is required';
+                                  return _isServerConfigMode
+                                      ? 'Server IP is required'
+                                      : 'Password is required';
                                 }
 
                                 return null;
@@ -223,6 +269,9 @@ class _SignupPageState extends State<SignupPage> {
                                 ),
                               ),
                               validator: (value) {
+                                if (_isServerConfigMode) {
+                                  return null;
+                                }
                                 if (value == null || value.isEmpty) {
                                   return 'Password is required';
                                 }
@@ -241,14 +290,7 @@ class _SignupPageState extends State<SignupPage> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () {
-                            if (_loginFormKey.currentState!.validate()) {
-                              Navigator.of(context).pop();
-                              Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(builder: (context) => DiscoverPage()),
-                              );
-                            }
-                          },
+                          onPressed: _handleSignupPressed,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue.shade500,
                             foregroundColor: Colors.white,

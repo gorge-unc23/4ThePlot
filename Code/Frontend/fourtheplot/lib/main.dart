@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/pages/landing/landing_page.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await DatabaseHelper.instance.loadServerIp();
 
   runApp(const MyApp());
 }

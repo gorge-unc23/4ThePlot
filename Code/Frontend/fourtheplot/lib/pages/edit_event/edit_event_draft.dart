@@ -175,6 +175,7 @@ class EditEventDraft extends ChangeNotifier {
       'price': isFree ? 0.0 : price,
       'currency': currency,
       'coverImageUrl': coverImageUrl,
+      'trending': originalEvent.trending,
     };
   }
 

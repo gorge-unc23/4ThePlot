@@ -155,6 +155,7 @@ class Event {
   final double price;
   final String currency;
   final String coverImageUrl;
+  final bool trending;
   final DateTime createdAt;
   final DateTime updatedAt;
   // TODO: Add a joined bool
@@ -176,6 +177,7 @@ class Event {
     required this.price,
     required this.currency,
     required this.coverImageUrl,
+    required this.trending,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -199,6 +201,7 @@ class Event {
     double? price,
     String? currency,
     String? coverImageUrl,
+    bool? trending,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -219,6 +222,7 @@ class Event {
       price: price ?? this.price,
       currency: currency ?? this.currency,
       coverImageUrl: coverImageUrl ?? this.coverImageUrl,
+      trending: trending ?? this.trending,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -251,6 +255,7 @@ class Event {
       price: (json['price'] as num?)?.toDouble() ?? 0,
       currency: (json['currency'] as String?) ?? 'EUR',
       coverImageUrl: json['coverImageUrl'] as String,
+      trending: (json['trending'] as bool?) ?? false,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -274,6 +279,7 @@ class Event {
       'price': price,
       'currency': currency,
       'coverImageUrl': coverImageUrl,
+      'trending': trending,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };

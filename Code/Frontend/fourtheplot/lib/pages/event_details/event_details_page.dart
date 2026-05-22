@@ -11,9 +11,9 @@ import 'package:fourtheplot/models/user.dart';
 import 'package:fourtheplot/pages/edit_event/edit_event_page.dart';
 import 'package:fourtheplot/pages/join_event/join_event_page.dart';
 import 'package:fourtheplot/pages/main_wrapper.dart';
+import 'package:fourtheplot/pages/trending_payment/trending_payment_page.dart';
 import 'package:fourtheplot/widgets/comment_card.dart';
 import 'package:fourtheplot/widgets/glassmorphism.dart';
-import 'package:fourtheplot/widgets/gradient_button.dart';
 import 'package:fourtheplot/widgets/gradient_text.dart';
 import 'package:fourtheplot/widgets/info_card.dart';
 import 'package:fourtheplot/widgets/tag_chip.dart';
@@ -47,6 +47,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
   bool _isUpdatingRegistration = false;
   bool _isLoadingComments = true;
   bool _isSubmittingComment = false;
+  bool _isDeletingEvent = false;
+  int? _deletingCommentId;
 
   @override
   void initState() {
@@ -101,6 +103,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
   Future<void> _loadRegistration() async {
     final eventId = int.tryParse(widget.event.id);
     if (eventId == null ||
+        _isAdmin ||
         widget.event.hostId == MainWrapper.loggedInUser.id.toString()) {
       if (!mounted) {
         return;
@@ -224,16 +227,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     return false;
   }
 
-  List<String> _buildBannerImages(String coverImageUrl) {
-    return [
-      coverImageUrl,
-      'https://www.shutterstock.com/image-photo/sun-sets-behind-mountain-ranges-600nw-2479236003.jpg',
-      'https://img.freepik.com/free-photo/lavender-field-sunset-near-valensole_268835-3910.jpg?semt=ais_hybrid&w=740&q=80',
-      'https://img.magnific.com/free-photo/beautiful-lake-mountains_395237-44.jpg?semt=ais_hybrid&w=740&q=80',
-      'https://cdn.pixabay.com/photo/2017/07/24/19/57/tiger-2535888_640.jpg',
-    ];
-  }
-
   User _buildCurrentUser() {
     return MainWrapper.loggedInUser;
   }
@@ -287,6 +280,110 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       _commentController.clear();
     });
     _commentFocusNode.unfocus();
+  }
+
+  Future<void> _handleDeleteComment(Comment comment) async {
+    if (_deletingCommentId != null) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete comment?'),
+        content: const Text('This comment will be removed from the event.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    setState(() {
+      _deletingCommentId = comment.id;
+    });
+    final result = await DatabaseHelper.instance.deleteComment(comment.id);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _deletingCommentId = null;
+    });
+
+    if (!result.success) {
+      _showSnackBar('Could not delete comment: ${result.message}');
+      return;
+    }
+
+    setState(() {
+      _comments = _comments.where((item) => item.id != comment.id).toList();
+    });
+    _showSnackBar('Comment deleted.');
+  }
+
+  Future<void> _handleDeleteEvent() async {
+    if (_isDeletingEvent) {
+      return;
+    }
+
+    final eventId = int.tryParse(widget.event.id);
+    if (eventId == null) {
+      _showSnackBar('Could not delete event: invalid event id.');
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete event?'),
+        content: Text('This will remove "${widget.event.title}" from the platform.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    setState(() {
+      _isDeletingEvent = true;
+    });
+    final result = await DatabaseHelper.instance.deleteEvent(eventId);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _isDeletingEvent = false;
+    });
+
+    if (!result.success) {
+      _showSnackBar('Could not delete event: ${result.message}');
+      return;
+    }
+
+    MainWrapper.refresh();
+    Navigator.of(context).pop();
   }
 
   @override
@@ -736,8 +833,11 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           ],
         ),
         const SizedBox(height: 12),
-        _buildCommentComposer(),
-        Divider(color: Colors.white.withValues(alpha: 0.2)),
+        if (!_isAdmin &&
+            widget.event.hostId != MainWrapper.loggedInUser.id.toString()) ...[
+          _buildCommentComposer(),
+          Divider(color: Colors.white.withValues(alpha: 0.2)),
+        ],
         if (_isLoadingComments)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 18),
@@ -753,7 +853,12 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemBuilder: (context, index) {
-                return CommentCard(comment: _comments[index]);
+                final comment = _comments[index];
+                return CommentCard(
+                  comment: comment,
+                  onDelete: _isAdmin ? () => _handleDeleteComment(comment) : null,
+                  isDeleting: _deletingCommentId == comment.id,
+                );
               },
               separatorBuilder: (context, index) => const SizedBox(height: 10),
               itemCount: _comments.length,
@@ -823,7 +928,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Text(
-        'No comments yet. Be the first to say something.',
+        _isAdmin
+            ? 'No comments have been posted for this event.'
+            : 'No comments yet. Be the first to say something.',
         style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
       ),
     );
@@ -869,7 +976,16 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
             ),
           ),
           const SizedBox(width: 12),
-          if (widget.event.hostId != MainWrapper.loggedInUser.id.toString()) ...[
+          if (_isAdmin) ...[
+            Expanded(
+              child: _RegistrationButton(
+                label: _isDeletingEvent ? 'Deleting...' : 'Delete event',
+                isDestructive: true,
+                isEnabled: !_isDeletingEvent,
+                onPressed: _handleDeleteEvent,
+              ),
+            ),
+          ] else if (widget.event.hostId != MainWrapper.loggedInUser.id.toString()) ...[
             Expanded(
               child: _RegistrationButton(
                 label: _registrationButtonLabel,
@@ -878,20 +994,45 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                 onPressed: _registration == null ? _handleJoinPressed : _handleUnregister,
               ),
             ),
-          ]
-          else ...[
-            GradientButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => EditEventPage(event: widget.event)),
-                );
-              },
-              label: "Edit event",
+          ] else ...[
+            Expanded(
+              child: _HostActionButton(
+                label: 'Edit event',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => EditEventPage(event: widget.event),
+                    ),
+                  );
+                },
+              ),
             ),
+            if (!widget.event.trending && MainWrapper.loggedInUser.role == UserRole.business) ...[
+              const SizedBox(width: 10),
+              Expanded(
+                child: _HostActionButton(
+                  label: 'Promote event',
+                  onPressed: _handlePromotePressed,
+                ),
+              ),
+            ],
           ],
         ],
       ),
     );
+  }
+
+  Future<void> _handlePromotePressed() async {
+    final promoted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (context) => TrendingPaymentPage(event: widget.event)),
+    );
+    if (!mounted) {
+      return;
+    }
+    if (promoted == true) {
+      MainWrapper.refresh();
+      Navigator.of(context).pop();
+    }
   }
 
   String get _registrationButtonLabel {
@@ -903,6 +1044,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     }
     return _registration == null ? 'Join event' : 'Unregister';
   }
+
+  bool get _isAdmin => MainWrapper.loggedInUser.role == UserRole.admin;
 
   Future<void> _handleJoinPressed() async {
     final joined = await Navigator.of(context).push<bool>(
@@ -965,6 +1108,43 @@ class _RegistrationButton extends StatelessWidget {
                   color: Colors.white.withValues(alpha: isEnabled ? 1 : 0.6),
                   fontWeight: FontWeight.w600,
                   fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HostActionButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+
+  const _HostActionButton({required this.label, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          child: Ink(
+            height: 48,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(colors: [Color(0xFF9B6CFF), Color(0xFF6EA8FF)]),
+            ),
+            child: Center(
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
                 ),
               ),
             ),
