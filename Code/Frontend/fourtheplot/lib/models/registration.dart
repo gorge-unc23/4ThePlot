@@ -2,9 +2,9 @@ import 'event.dart';
 import 'user.dart';
 
 class Registration {
-	final String id;
-	final String userId;
-	final String eventId;
+	final int id;
+	final int userId;
+	final int eventId;
 	final DateTime registeredAt;
 	final User? user;
 	final Event? event;
@@ -19,9 +19,9 @@ class Registration {
 	});
 
 	Registration copyWith({
-		String? id,
-		String? userId,
-		String? eventId,
+		int? id,
+		int? userId,
+		int? eventId,
 		DateTime? registeredAt,
 		User? user,
 		Event? event,
@@ -38,9 +38,9 @@ class Registration {
 
 	factory Registration.fromJson(Map<String, dynamic> json) {
 		return Registration(
-			id: (json['id'] as String?) ?? (json['id']?.toString() ?? ''),
-			userId: (json['userId'] as String?) ?? (json['user_id']?.toString() ?? ''),
-			eventId: (json['eventId'] as String?) ?? (json['event_id']?.toString() ?? ''),
+			id: json['id'],
+			userId: json['userId'],
+			eventId: json['eventId'],
 			registeredAt: json['registeredAt'] != null
 					? DateTime.parse(json['registeredAt'] as String)
 					: DateTime.parse((json['registered_at'] as String?) ?? DateTime.now().toIso8601String()),

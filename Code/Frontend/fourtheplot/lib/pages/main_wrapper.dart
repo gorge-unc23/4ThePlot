@@ -10,39 +10,77 @@ import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 
 class MainWrapper extends StatefulWidget {
   static late User loggedInUser;
+  static _MainWrapperState? _activeState;
 
   const MainWrapper({super.key});
+
+  static void refresh() {
+    _activeState?.refresh();
+  }
+
+  static void refreshFrom(BuildContext context) {
+    final state = context.findAncestorStateOfType<_MainWrapperState>() ?? _activeState;
+    state?.refresh();
+  }
 
   @override
   State<MainWrapper> createState() => _MainWrapperState();
 }
 
 class _MainWrapperState extends State<MainWrapper> {
+  int _refreshVersion = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    MainWrapper._activeState = this;
+  }
+
+  @override
+  void dispose() {
+    if (MainWrapper._activeState == this) {
+      MainWrapper._activeState = null;
+    }
+    super.dispose();
+  }
+
+  void refresh() {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _refreshVersion++;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return PersistentTabView(
-      context,
-      screens: _buildScreens(),
-      items: _navBarsItems(),
-      backgroundColor: Colors.black,
-      decoration: NavBarDecoration(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30.0),
-          topRight: Radius.circular(30.0),
+    return KeyedSubtree(
+      key: ValueKey(_refreshVersion),
+      child: PersistentTabView(
+        context,
+        screens: _buildScreens(),
+        items: _navBarsItems(),
+        backgroundColor: Colors.black,
+        decoration: NavBarDecoration(
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(30.0),
+            topRight: Radius.circular(30.0),
+          ),
+          colorBehindNavBar: const Color(0xFF0F1012),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 14,
+              offset: Offset(0, -4),
+            ),
+            BoxShadow(
+              color: Colors.white.withValues(alpha: 0.1),
+              blurRadius: 0,
+              spreadRadius: 1,
+            ),
+          ],
         ),
-        colorBehindNavBar: const Color(0xFF0F1012),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 14,
-            offset: Offset(0, -4),
-          ),
-          BoxShadow(
-            color: Colors.white.withValues(alpha: 0.1),
-            blurRadius: 0,
-            spreadRadius: 1,
-          ),
-        ],
       ),
     );
   }

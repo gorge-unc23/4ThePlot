@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:fourtheplot/common/colors.dart';
-import 'package:fourtheplot/pages/add_event/add_event_draft.dart';
-import 'package:fourtheplot/pages/add_event/add_event_photos_page.dart';
+import 'package:fourtheplot/pages/edit_event/edit_event_draft.dart';
+import 'package:fourtheplot/pages/edit_event/edit_event_photos_page.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
-class AddEventDetailsPage extends StatefulWidget {
-  const AddEventDetailsPage({super.key});
+class EditEventDetailsPage extends StatefulWidget {
+  const EditEventDetailsPage({super.key});
 
   @override
-  State<AddEventDetailsPage> createState() => _AddEventDetailsPageState();
+  State<EditEventDetailsPage> createState() => _EditEventDetailsPageState();
 }
 
-class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
+class _EditEventDetailsPageState extends State<EditEventDetailsPage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
@@ -29,12 +29,12 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
   @override
   void initState() {
     super.initState();
-    final draft = context.read<AddEventDraft>();
+    final draft = context.read<EditEventDraft>();
     _titleController = TextEditingController(text: draft.title);
     _descriptionController = TextEditingController(text: draft.description);
     _locationController = TextEditingController(text: draft.locationAddress);
-    _venueController = TextEditingController(text: draft.venueName);
     _cityController = TextEditingController(text: draft.city);
+    _venueController = TextEditingController(text: draft.venueName);
     _priceController = TextEditingController(
       text: draft.price > 0 ? draft.price.toStringAsFixed(2) : '',
     );
@@ -59,11 +59,9 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
     super.dispose();
   }
 
-  Future<void> _pickStartDate(AddEventDraft draft) async {
+  Future<void> _pickStartDate(EditEventDraft draft) async {
     final picked = await _pickDateTime(draft.startAt ?? DateTime.now());
-    if (picked == null) {
-      return;
-    }
+    if (picked == null) return;
     if (draft.endAt != null && picked.isAfter(draft.endAt!)) {
       _showMessage('Start time must be before end time.');
       return;
@@ -71,12 +69,10 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
     draft.setStartAt(picked);
   }
 
-  Future<void> _pickEndDate(AddEventDraft draft) async {
+  Future<void> _pickEndDate(EditEventDraft draft) async {
     final base = draft.startAt ?? DateTime.now();
     final picked = await _pickDateTime(draft.endAt ?? base);
-    if (picked == null) {
-      return;
-    }
+    if (picked == null) return;
     if (draft.startAt != null && picked.isBefore(draft.startAt!)) {
       _showMessage('End time must be after start time.');
       return;
@@ -91,30 +87,16 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
       lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
       initialDate: initial,
     );
-    if (date == null) {
-      return null;
-    }
-    if (!mounted) {
-      return null;
-    }
+    if (date == null || !mounted) return null;
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initial),
     );
-    if (time == null) {
-      return null;
-    }
+    if (time == null) return null;
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
 
-  String _formatDateTime(DateTime? value) {
-    if (value == null) {
-      return 'Select date & time';
-    }
-    return DateFormat('EEE, MMM d • h:mm a').format(value);
-  }
-
-  Future<void> _pickLocationOnMap(AddEventDraft draft) async {
+  Future<void> _pickLocationOnMap(EditEventDraft draft) async {
     final selected = await showDialog<LatLng>(
       context: context,
       builder: (context) {
@@ -125,9 +107,7 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
         );
       },
     );
-    if (selected == null) {
-      return;
-    }
+    if (selected == null) return;
     draft.setLocationCoordinates(
       latitude: selected.latitude,
       longitude: selected.longitude,
@@ -138,12 +118,15 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
     switch (city.trim().toLowerCase()) {
       case 'durres':
       case 'durrës':
+      case 'durrÃ«s':
         return LatLng(41.3231, 19.4414);
       case 'vlore':
       case 'vlorë':
+      case 'vlorÃ«':
         return LatLng(40.4667, 19.4897);
       case 'shkoder':
       case 'shkodër':
+      case 'shkodÃ«r':
         return LatLng(42.0683, 19.5126);
       case 'tirana':
       default:
@@ -151,23 +134,22 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
     }
   }
 
-  String _formatCoordinates(AddEventDraft draft) {
+  String _formatDateTime(DateTime? value) {
+    if (value == null) return 'Select date & time';
+    return DateFormat('EEE, MMM d • h:mm a').format(value);
+  }
+
+  String _formatCoordinates(EditEventDraft draft) {
     if (draft.latitude == null || draft.longitude == null) {
       return 'No exact map point selected';
     }
     return '${draft.latitude!.toStringAsFixed(5)}, ${draft.longitude!.toStringAsFixed(5)}';
   }
 
-  void _handleNext(AddEventDraft draft) {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+  void _handleNext(EditEventDraft draft) {
+    if (!_formKey.currentState!.validate()) return;
     if (draft.startAt == null || draft.endAt == null) {
       _showMessage('Please pick a start and end time.');
-      return;
-    }
-    if (draft.city.isEmpty) {
-      _showMessage('Please enter the city.');
       return;
     }
     if (draft.endAt!.isBefore(draft.startAt!)) {
@@ -181,8 +163,10 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
 
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) =>
-            ChangeNotifierProvider.value(value: draft, child: const AddEventPhotosPage()),
+        builder: (context) => ChangeNotifierProvider.value(
+          value: draft,
+          child: const EditEventPhotosPage(),
+        ),
       ),
     );
   }
@@ -195,111 +179,64 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final draft = context.watch<AddEventDraft>();
-
+    final draft = context.watch<EditEventDraft>();
     return Scaffold(
       backgroundColor: backgroundColor,
+      appBar: AppBar(
+        backgroundColor: backgroundColor,
+        elevation: 0,
+        title: const Text('Edit event'),
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(10, 12, 10, 24),
         children: [
-          const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: const [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Create Event",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 32),
-                  ),
-                  Text("Step 1 of 3", style: TextStyle(fontSize: 14, color: Colors.grey)),
-                ],
-              ),
-            ],
+          Text(
+            'Step 1 of 3',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 12),
           _buildSectionCard(
             child: Form(
               key: _formKey,
               child: Column(
                 children: [
-                  TextFormField(
-                    onTapOutside: (PointerDownEvent event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
+                  _textField(
                     controller: _titleController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Event title', icon: Icons.event),
+                    label: 'Event title',
+                    icon: Icons.event,
                     onChanged: draft.setTitle,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Title is required.';
-                      }
-                      return null;
-                    },
+                    requiredMessage: 'Title is required.',
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    onTapOutside: (PointerDownEvent event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
+                  _textField(
                     controller: _descriptionController,
-                    style: const TextStyle(color: Colors.white),
-                    maxLines: 3,
-                    decoration: _inputDecoration('Description', icon: Icons.text_snippet),
+                    label: 'Description',
+                    icon: Icons.text_snippet,
                     onChanged: draft.setDescription,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Description is required.';
-                      }
-                      return null;
-                    },
+                    requiredMessage: 'Description is required.',
+                    maxLines: 3,
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    onTapOutside: (PointerDownEvent event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
+                  _textField(
                     controller: _locationController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Location address', icon: Icons.place),
+                    label: 'Location address',
+                    icon: Icons.place,
                     onChanged: draft.setLocationAddress,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Location is required.';
-                      }
-                      return null;
-                    },
+                    requiredMessage: 'Location is required.',
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    onTapOutside: (PointerDownEvent event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
+                  _textField(
                     controller: _cityController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('City', icon: Icons.location_city),
+                    label: 'City',
+                    icon: Icons.location_city,
                     onChanged: draft.setCity,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'City is required.';
-                      }
-                      return null;
-                    },
+                    requiredMessage: 'City is required.',
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    onTapOutside: (PointerDownEvent event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
+                  _textField(
                     controller: _venueController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration(
-                      'Venue name (optional)',
-                      icon: Icons.location_city,
-                    ),
+                    label: 'Venue name (optional)',
+                    icon: Icons.location_city,
                     onChanged: draft.setVenueName,
                   ),
                   const SizedBox(height: 12),
@@ -328,9 +265,7 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
                     value: draft.isPaid,
                     onChanged: (value) {
                       draft.setIsPaid(value);
-                      if (!value) {
-                        _priceController.text = '';
-                      }
+                      if (!value) _priceController.text = '';
                     },
                     contentPadding: EdgeInsets.zero,
                     title: const Text(
@@ -345,9 +280,6 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
-                    onTapOutside: (PointerDownEvent event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
                     controller: _priceController,
                     style: const TextStyle(color: Colors.white),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -357,52 +289,29 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
                       icon: Icons.sell,
                       helper: draft.isPaid ? 'Enter ticket price' : 'Free event',
                     ),
-                    onChanged: (value) {
-                      final parsed = double.tryParse(value) ?? 0.0;
-                      draft.setPrice(parsed);
-                    },
+                    onChanged: (value) => draft.setPrice(double.tryParse(value) ?? 0),
                     validator: (value) {
-                      if (!draft.isPaid) {
-                        return null;
-                      }
-                      final parsed = double.tryParse(value ?? '') ?? 0.0;
-                      if (parsed <= 0) {
-                        return 'Price must be greater than 0.';
-                      }
-                      return null;
+                      if (!draft.isPaid) return null;
+                      final parsed = double.tryParse(value ?? '') ?? 0;
+                      return parsed <= 0 ? 'Price must be greater than 0.' : null;
                     },
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    onTapOutside: (PointerDownEvent event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
+                  _textField(
                     controller: _categoriesController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration(
-                      'Categories (comma separated)',
-                      icon: Icons.category,
-                    ),
+                    label: 'Categories (comma separated)',
+                    icon: Icons.category,
                     onChanged: draft.setCategoriesFromText,
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    onTapOutside: (PointerDownEvent event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
+                  _textField(
                     controller: _tagsController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration(
-                      'Tags (comma separated)',
-                      icon: Icons.tag,
-                    ),
+                    label: 'Tags (comma separated)',
+                    icon: Icons.tag,
                     onChanged: draft.setTagsFromText,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
-                    onTapOutside: (PointerDownEvent event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
                     controller: _capacityController,
                     style: const TextStyle(color: Colors.white),
                     keyboardType: TextInputType.number,
@@ -410,10 +319,7 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
                       'Capacity (optional)',
                       icon: Icons.groups,
                     ),
-                    onChanged: (value) {
-                      final parsed = int.tryParse(value);
-                      draft.setCapacityMax(parsed);
-                    },
+                    onChanged: (value) => draft.setCapacityMax(int.tryParse(value)),
                   ),
                 ],
               ),
@@ -426,6 +332,27 @@ class _AddEventDetailsPageState extends State<AddEventDetailsPage> {
         label: 'Next',
         onPressed: () => _handleNext(draft),
       ),
+    );
+  }
+
+  Widget _textField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required ValueChanged<String> onChanged,
+    String? requiredMessage,
+    int maxLines = 1,
+  }) {
+    return TextFormField(
+      controller: controller,
+      style: const TextStyle(color: Colors.white),
+      maxLines: maxLines,
+      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+      decoration: _inputDecoration(label, icon: icon),
+      onChanged: onChanged,
+      validator: requiredMessage == null
+          ? null
+          : (value) => value == null || value.trim().isEmpty ? requiredMessage : null,
     );
   }
 
@@ -546,27 +473,12 @@ class _MapPickerField extends StatelessWidget {
           Icon(Icons.map, color: Colors.white.withValues(alpha: 0.7)),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Exact map point',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: hasSelection
-                        ? Colors.white
-                        : Colors.white.withValues(alpha: 0.55),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+            child: Text(
+              value,
+              style: TextStyle(
+                color: hasSelection ? Colors.white : Colors.white.withValues(alpha: 0.55),
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           if (onClear != null)
@@ -631,11 +543,7 @@ class _LocationPickerDialogState extends State<_LocationPickerDialog> {
                     interactionOptions: const InteractionOptions(
                       flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
                     ),
-                    onTap: (_, point) {
-                      setState(() {
-                        _selectedPosition = point;
-                      });
-                    },
+                    onTap: (_, point) => setState(() => _selectedPosition = point),
                   ),
                   children: [
                     TileLayer(

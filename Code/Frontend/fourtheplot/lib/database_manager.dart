@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:fourtheplot/models/registration.dart';
 import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fourtheplot/models/comment.dart';
@@ -568,6 +569,20 @@ class DatabaseHelper {
     return result.copyWith(data: Comment.fromJson(result.data as Map<String, dynamic>));
   }
 
+  Future<ApiResult> getCommentsByEvent(int eventId) async {
+    final result = await _request('GET', 'comments/event/$eventId');
+    if (!result.success) {
+      return result;
+    }
+    final list =
+        (result.data as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(Comment.fromJson)
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return result.copyWith(data: list);
+  }
+
   Future<ApiResult> createComment(Map<String, dynamic> payload) async {
     return _request('POST', 'comments/', body: payload);
   }
@@ -578,6 +593,31 @@ class DatabaseHelper {
 
   Future<ApiResult> createRegistration(Map<String, dynamic> payload) async {
     return _request('POST', 'registration/', body: payload);
+  }
+
+  Future<ApiResult> getRegistrationsByUser(int userId) async {
+    final result = await _request('GET', 'registration/user/$userId');
+    if (!result.success) {
+      return result;
+    }
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> getRegistrationForUserEvent(int userId, int eventId) async {
+    final result = await _request('GET', 'registration/user/$userId/event/$eventId');
+    final registration = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(Registration.fromJson)
+        .toList();
+
+    if (registration.isNotEmpty) {
+      return result.copyWith(data: registration[0]);
+    }
+
+    return result.copyWith(data: null);
   }
 
   Future<ApiResult> deleteRegistration(int registrationId) async {

@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:fourtheplot/common/colors.dart';
 import 'package:fourtheplot/common/credit_card_expiry_formatter.dart';
 import 'package:fourtheplot/common/credit_card_number_formatter.dart';
+import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/models/event.dart';
-import 'package:fourtheplot/widgets/gradient_button.dart';
+import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:fourtheplot/widgets/info_card.dart';
 import 'package:fourtheplot/widgets/quantity_button.dart';
 import 'package:fourtheplot/widgets/tag_chip.dart';
@@ -20,6 +21,7 @@ class JoinEventPage extends StatefulWidget {
 
 class _JoinEventPageState extends State<JoinEventPage> {
   int _ticketCount = 1;
+  bool _isSubmitting = false;
 
   final TextEditingController _cardNumberController = TextEditingController();
   final TextEditingController _expiryController = TextEditingController();
@@ -61,13 +63,44 @@ class _JoinEventPageState extends State<JoinEventPage> {
     return '${widget.event.currency} ${value.toStringAsFixed(2)}';
   }
 
-  void _handleConfirm() {
-    final message = _isPaid
-        ? 'Payment confirmed. Your ticket is secured.'
-        : 'You are confirmed. See you there.';
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
+  Future<void> _handleConfirm() async {
+    if (_isSubmitting) {
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    final result = await DatabaseHelper.instance.createRegistration({
+      'userId': MainWrapper.loggedInUser.id,
+      'eventId': int.tryParse(widget.event.id) ?? widget.event.id,
+    });
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = false;
+    });
+
+    if (!result.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not join event: ${result.message}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('You are confirmed. See you there.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -78,7 +111,11 @@ class _JoinEventPageState extends State<JoinEventPage> {
         '${DateFormat('h:mm a').format(event.startAt)} - ${DateFormat('h:mm a').format(event.endAt)}';
     final priceLabel = _formatPrice(event.price);
     final totalLabel = _formatPrice(_total);
-    final ctaLabel = _isPaid ? 'Confirm payment' : 'Confirm';
+    final ctaLabel = _isSubmitting
+        ? 'Confirming...'
+        : _isPaid
+        ? 'Confirm payment'
+        : 'Confirm';
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -183,7 +220,7 @@ class _JoinEventPageState extends State<JoinEventPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Tickets',
+          'Ticket',
           style: TextStyle(
             color: Colors.white,
             fontSize: 18,
@@ -219,25 +256,25 @@ class _JoinEventPageState extends State<JoinEventPage> {
                   ],
                 ),
               ),
-              QuantityButton(
-                icon: Icons.remove,
-                onPressed: _ticketCount > 1 ? _decrementTickets : null,
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  '$_ticketCount',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-              QuantityButton(
-                icon: Icons.add,
-                onPressed: _ticketCount < 6 ? _incrementTickets : null,
-              ),
+              // QuantityButton( // TODO: add later
+              //   icon: Icons.remove,
+              //   onPressed: _ticketCount > 1 ? _decrementTickets : null,
+              // ),
+              // Padding(
+              //   padding: const EdgeInsets.symmetric(horizontal: 12),
+              //   child: Text(
+              //     '$_ticketCount',
+              //     style: const TextStyle(
+              //       color: Colors.white,
+              //       fontWeight: FontWeight.w600,
+              //       fontSize: 16,
+              //     ),
+              //   ),
+              // ),
+              // QuantityButton(
+              //   icon: Icons.add,
+              //   onPressed: _ticketCount < 6 ? _incrementTickets : null,
+              // ),
             ],
           ),
         ),
@@ -263,15 +300,15 @@ class _JoinEventPageState extends State<JoinEventPage> {
                 accentColor: accentBlue,
               ),
             ),
-            SizedBox(
-              width: itemWidth,
-              child: InfoCard(
-                icon: Icons.receipt_long,
-                label: 'Total',
-                value: totalLabel,
-                accentColor: accentPurple,
-              ),
-            ),
+            // SizedBox( // TODO: add later
+            //   width: itemWidth,
+            //   child: InfoCard(
+            //     icon: Icons.receipt_long,
+            //     label: 'Total',
+            //     value: totalLabel,
+            //     accentColor: accentPurple,
+            //   ),
+            // ),
           ],
         );
       },
@@ -416,7 +453,10 @@ class _JoinEventPageState extends State<JoinEventPage> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: GradientButton(label: ctaLabel, onPressed: _handleConfirm),
+            child: _ConfirmButton(
+              label: ctaLabel,
+              onPressed: _isSubmitting ? null : _handleConfirm,
+            ),
           ),
         ],
       ),
@@ -444,4 +484,42 @@ class _JoinEventPageState extends State<JoinEventPage> {
   }
 }
 
+class _ConfirmButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
 
+  const _ConfirmButton({required this.label, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final isEnabled = onPressed != null;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          child: Ink(
+            height: 48,
+            decoration: BoxDecoration(
+              gradient: isEnabled
+                  ? const LinearGradient(colors: [Color(0xFF9B6CFF), Color(0xFF6EA8FF)])
+                  : null,
+              color: isEnabled ? null : Colors.white.withValues(alpha: 0.1),
+            ),
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: isEnabled ? 1 : 0.6),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

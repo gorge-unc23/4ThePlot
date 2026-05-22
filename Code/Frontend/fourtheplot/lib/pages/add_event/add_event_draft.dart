@@ -6,6 +6,9 @@ class AddEventDraft extends ChangeNotifier {
   String description = '';
   String locationAddress = '';
   String venueName = '';
+  String city = '';
+  double? latitude;
+  double? longitude;
   DateTime? startAt;
   DateTime? endAt;
   bool isPaid = false;
@@ -23,6 +26,7 @@ class AddEventDraft extends ChangeNotifier {
     return title.isNotEmpty &&
         description.isNotEmpty &&
         locationAddress.isNotEmpty &&
+        city.isNotEmpty &&
         startAt != null &&
         endAt != null &&
         (!isPaid || price > 0);
@@ -47,6 +51,23 @@ class AddEventDraft extends ChangeNotifier {
 
   void setVenueName(String value) {
     venueName = value.trim();
+    notifyListeners();
+  }
+
+  void setCity(String value) {
+    city = value.trim();
+    notifyListeners();
+  }
+
+  void setLocationCoordinates({required double latitude, required double longitude}) {
+    this.latitude = latitude;
+    this.longitude = longitude;
+    notifyListeners();
+  }
+
+  void clearLocationCoordinates() {
+    latitude = null;
+    longitude = null;
     notifyListeners();
   }
 
@@ -116,6 +137,9 @@ class AddEventDraft extends ChangeNotifier {
     description = '';
     locationAddress = '';
     venueName = '';
+    city = '';
+    latitude = null;
+    longitude = null;
     startAt = null;
     endAt = null;
     isPaid = false;
@@ -146,8 +170,9 @@ class AddEventDraft extends ChangeNotifier {
       'location': {
         'address': locationAddress,
         'venueName': venueName.isEmpty ? null : venueName,
-        'latitude': null,
-        'longitude': null,
+        'latitude': latitude,
+        'longitude': longitude,
+        'city': city,
       },
       'capacity': {
         'maxAttendees': capacityMax,

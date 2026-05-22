@@ -3,14 +3,17 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:fourtheplot/common/colors.dart';
-import 'package:fourtheplot/mock/mock_comments.dart';
+import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/models/comment.dart';
 import 'package:fourtheplot/models/event.dart';
+import 'package:fourtheplot/models/registration.dart';
 import 'package:fourtheplot/models/user.dart';
+import 'package:fourtheplot/pages/edit_event/edit_event_page.dart';
 import 'package:fourtheplot/pages/join_event/join_event_page.dart';
 import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:fourtheplot/widgets/comment_card.dart';
 import 'package:fourtheplot/widgets/glassmorphism.dart';
+import 'package:fourtheplot/widgets/gradient_button.dart';
 import 'package:fourtheplot/widgets/gradient_text.dart';
 import 'package:fourtheplot/widgets/info_card.dart';
 import 'package:fourtheplot/widgets/tag_chip.dart';
@@ -32,24 +35,31 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
   late final PageController _pageController;
   int _currentBannerIndex = 0;
   late final List<String> _bannerImages;
-  late final List<Comment> _comments;
+  List<Comment> _comments = const [];
   late final User _currentUser;
   late final TextEditingController _commentController;
   late final FocusNode _commentFocusNode;
   Timer? _autoAdvanceTimer;
   Timer? _resumeAutoAdvanceTimer;
   bool _isAutoAdvancePaused = false;
+  Registration? _registration;
+  bool _isLoadingRegistration = true;
+  bool _isUpdatingRegistration = false;
+  bool _isLoadingComments = true;
+  bool _isSubmittingComment = false;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
-    _bannerImages = _buildBannerImages(widget.event.coverImageUrl);
-    _comments = mockComments;
+    // _bannerImages = _buildBannerImages(widget.event.coverImageUrl);
+    _bannerImages = [widget.event.coverImageUrl];
     _currentUser = _buildCurrentUser();
     _commentController = TextEditingController();
     _commentFocusNode = FocusNode();
     _startAutoAdvance();
+    _loadRegistration();
+    _loadComments();
   }
 
   @override
@@ -88,11 +98,124 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     });
   }
 
+  Future<void> _loadRegistration() async {
+    final eventId = int.tryParse(widget.event.id);
+    if (eventId == null ||
+        widget.event.hostId == MainWrapper.loggedInUser.id.toString()) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _registration = null;
+        _isLoadingRegistration = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingRegistration = true;
+    });
+
+    final result = await DatabaseHelper.instance.getRegistrationForUserEvent(
+      MainWrapper.loggedInUser.id,
+      eventId,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    Registration? registration;
+    if (result.success && result.data is Registration) {
+      registration = result.data;
+    }
+
+    setState(() {
+      _registration = registration;
+      _isLoadingRegistration = false;
+    });
+  }
+
+  Future<void> _handleUnregister() async {
+    if (_registration == null || _isUpdatingRegistration) {
+      return;
+    }
+
+    final registrationId = _registration!.id;
+    // if (registrationId == null) {
+    //   _showSnackBar('Could not unregister: invalid registration id.');
+    //   return;
+    // }
+
+    setState(() {
+      _isUpdatingRegistration = true;
+    });
+
+    final result = await DatabaseHelper.instance.deleteRegistration(registrationId);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isUpdatingRegistration = false;
+    });
+
+    if (!result.success) {
+      _showSnackBar('Could not unregister: ${result.message}');
+      return;
+    }
+
+    setState(() {
+      _registration = null;
+    });
+    _showSnackBar('You have unregistered from this event.');
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
+  }
+
+  Future<void> _loadComments() async {
+    final eventId = int.tryParse(widget.event.id);
+    if (eventId == null) {
+      setState(() {
+        _comments = const [];
+        _isLoadingComments = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingComments = true;
+    });
+
+    final result = await DatabaseHelper.instance.getCommentsByEvent(eventId);
+    if (!mounted) {
+      return;
+    }
+
+    if (!result.success || result.data is! List<Comment>) {
+      setState(() {
+        _comments = const [];
+        _isLoadingComments = false;
+      });
+      _showSnackBar('Could not load comments: ${result.message}');
+      return;
+    }
+
+    setState(() {
+      _comments = result.data as List<Comment>;
+      _isLoadingComments = false;
+    });
+  }
+
   bool _handleBannerScroll(ScrollNotification notification) {
     if (notification is ScrollStartNotification && notification.dragDetails != null) {
       _pauseAutoAdvance();
     }
-    if (notification is UserScrollNotification && notification.direction != ScrollDirection.idle) {
+    if (notification is UserScrollNotification &&
+        notification.direction != ScrollDirection.idle) {
       _pauseAutoAdvance();
     }
     if (notification is ScrollEndNotification) {
@@ -112,33 +235,55 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
   }
 
   User _buildCurrentUser() {
-    final now = DateTime.now();
-    return User(
-      id: 1,
-      displayName: 'You',
-      email: 'you@example.com',
-      role: UserRole.goer,
-      status: UserStatus.active,
-      createdAt: now.subtract(const Duration(days: 30)),
-      updatedAt: now,
-    );
+    return MainWrapper.loggedInUser;
   }
 
-  void _submitComment() {
+  Future<void> _submitComment() async {
     final text = _commentController.text.trim();
-    if (text.isEmpty) {
+    final eventId = int.tryParse(widget.event.id);
+    if (text.isEmpty || _isSubmittingComment) {
       return;
     }
-    final comment = Comment(
-      id: 5,
-      userId: MainWrapper.loggedInUser.id,
-      eventId: 5,
-      text: text,
-      createdAt: DateTime.now(),
-      author: _currentUser,
-    );
+    if (eventId == null) {
+      _showSnackBar('Could not post comment: invalid event id.');
+      return;
+    }
+
     setState(() {
-      _comments.insert(0, comment);
+      _isSubmittingComment = true;
+    });
+
+    final result = await DatabaseHelper.instance.createComment({
+      'userId': MainWrapper.loggedInUser.id,
+      'eventId': eventId,
+      'text': text,
+    });
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isSubmittingComment = false;
+    });
+
+    if (!result.success) {
+      _showSnackBar('Could not post comment: ${result.message}');
+      return;
+    }
+
+    final createdComment = result.data is Map<String, dynamic>
+        ? Comment.fromJson(result.data as Map<String, dynamic>)
+        : Comment(
+            id: 0,
+            userId: MainWrapper.loggedInUser.id,
+            eventId: eventId,
+            text: text,
+            createdAt: DateTime.now(),
+            author: _currentUser,
+          );
+
+    setState(() {
+      _comments = [createdComment, ..._comments];
       _commentController.clear();
     });
     _commentFocusNode.unfocus();
@@ -148,7 +293,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
   Widget build(BuildContext context) {
     final event = widget.event;
     final dateLabel = DateFormat('EEE, MMM d').format(event.startAt);
-    final timeLabel = '${DateFormat('h:mm a').format(event.startAt)} - ${DateFormat('h:mm a').format(event.endAt)}';
+    final timeLabel =
+        '${DateFormat('h:mm a').format(event.startAt)} - ${DateFormat('h:mm a').format(event.endAt)}';
     final capacityLabel = event.capacity.maxAttendees == null
         ? '${event.capacity.confirmedAttendees} joined'
         : '${event.capacity.confirmedAttendees}/${event.capacity.maxAttendees} joined';
@@ -156,35 +302,40 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          _buildBanner(context),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildTitleBlock(event, dateLabel, statusLabel),
-                const SizedBox(height: 20),
-                _buildQuickFacts(
-                  context,
-                  dateLabel: dateLabel,
-                  timeLabel: timeLabel,
-                  venueLabel: event.location.venueName ?? event.location.address,
-                  capacityLabel: capacityLabel,
-                ),
-                const SizedBox(height: 20),
-                _buildAboutSection(event),
-                const SizedBox(height: 18),
-                _buildCategorySection(event),
-                const SizedBox(height: 20),
-                _buildCommentsSection(),
-                const SizedBox(height: 92),
-              ],
+      body: RefreshIndicator(
+        onRefresh: () async {
+          setState(() {});
+        },
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            _buildBanner(context),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTitleBlock(event, dateLabel, statusLabel),
+                  const SizedBox(height: 20),
+                  _buildQuickFacts(
+                    context,
+                    dateLabel: dateLabel,
+                    timeLabel: timeLabel,
+                    venueLabel: event.location.venueName ?? event.location.address,
+                    capacityLabel: capacityLabel,
+                  ),
+                  const SizedBox(height: 20),
+                  _buildAboutSection(event),
+                  const SizedBox(height: 18),
+                  _buildCategorySection(event),
+                  const SizedBox(height: 20),
+                  _buildCommentsSection(),
+                  const SizedBox(height: 92),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: _buildJoinBar(context, capacityLabel),
     );
@@ -255,7 +406,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                         widget.event.title,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 26,
+                          fontSize: 22,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -295,24 +446,19 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
   Widget _buildBannerIndicator() {
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: List.generate(
-        _bannerImages.length,
-        (index) {
-          final isActive = index == _currentBannerIndex;
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            margin: const EdgeInsets.only(left: 6),
-            height: 6,
-            width: isActive ? 18 : 6,
-            decoration: BoxDecoration(
-              color: isActive
-                  ? Colors.white
-                  : Colors.white.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(6),
-            ),
-          );
-        },
-      ),
+      children: List.generate(_bannerImages.length, (index) {
+        final isActive = index == _currentBannerIndex;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          margin: const EdgeInsets.only(left: 6),
+          height: 6,
+          width: isActive ? 18 : 6,
+          decoration: BoxDecoration(
+            color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(6),
+          ),
+        );
+      }),
     );
   }
 
@@ -351,9 +497,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       child: Center(
         child: CircularProgressIndicator(
           strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(
-            Colors.white.withValues(alpha: 0.8),
-          ),
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withValues(alpha: 0.8)),
         ),
       ),
     );
@@ -374,9 +518,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       children: [
         GradientText(
           event.title,
-          gradient: LinearGradient(
-            colors: [accentBlue, accentPurple],
-          ),
+          gradient: LinearGradient(colors: [accentBlue, accentPurple]),
           style: const TextStyle(
             fontSize: 30,
             fontWeight: FontWeight.bold,
@@ -390,28 +532,19 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
             const SizedBox(width: 10),
             Text(
               dateLabel,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
-                fontSize: 13,
-              ),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),
             ),
           ],
         ),
         const SizedBox(height: 10),
         Row(
           children: [
-            Icon(
-              Icons.location_on,
-              size: 16,
-              color: Colors.white.withValues(alpha: 0.7),
-            ),
+            Icon(Icons.location_on, size: 16, color: Colors.white.withValues(alpha: 0.7)),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
                 event.location.address,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.8),
-                ),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
               ),
             ),
           ],
@@ -427,9 +560,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
             const SizedBox(width: 6),
             Text(
               'Hosted by ${event.hostName ?? 'Community'}',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
-              ),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
             ),
           ],
         ),
@@ -549,10 +680,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           ),
           child: Text(
             event.description,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.75),
-              height: 1.5,
-            ),
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.75), height: 1.5),
           ),
         ),
       ],
@@ -577,17 +705,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           runSpacing: 8,
           children: [
             ...event.categories.map(
-              (category) => TagChip(
-                label: category,
-                color: accentPurple,
-              ),
+              (category) => TagChip(label: category, color: accentPurple),
             ),
-            ...event.tags.map(
-              (tag) => TagChip(
-                label: '#$tag',
-                color: accentBlue,
-              ),
-            ),
+            ...event.tags.map((tag) => TagChip(label: '#$tag', color: accentBlue)),
           ],
         ),
       ],
@@ -611,19 +731,19 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
             ),
             Text(
               'Most recent',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.55),
-                fontSize: 12,
-              ),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 12),
             ),
           ],
         ),
         const SizedBox(height: 12),
         _buildCommentComposer(),
-        Divider(
-          color: Colors.white.withValues(alpha: 0.2),
-        ),
-        if (_comments.isEmpty)
+        Divider(color: Colors.white.withValues(alpha: 0.2)),
+        if (_isLoadingComments)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 18),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_comments.isEmpty)
           _buildEmptyComments()
         else
           MediaQuery.removePadding(
@@ -656,10 +776,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           CircleAvatar(
             radius: 18,
             backgroundColor: accentBlue.withValues(alpha: 0.25),
-            child: const Text(
-              'Y',
-              style: TextStyle(color: Colors.white),
-            ),
+            child: const Text('Y', style: TextStyle(color: Colors.white)),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -672,7 +789,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
               textInputAction: TextInputAction.send,
               onSubmitted: (_) => _submitComment(),
               decoration: InputDecoration(
-                hintText: 'Share your thoughts...',
+                hintText: _isSubmittingComment ? 'Posting...' : 'Share your thoughts...',
                 hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.45)),
                 border: InputBorder.none,
                 isDense: true,
@@ -681,8 +798,14 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           ),
           const SizedBox(width: 8),
           IconButton(
-            onPressed: _submitComment,
-            icon: const Icon(Icons.send_rounded),
+            onPressed: _isSubmittingComment ? null : _submitComment,
+            icon: _isSubmittingComment
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.send_rounded),
             color: Colors.white,
             tooltip: 'Post comment',
           ),
@@ -701,9 +824,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       ),
       child: Text(
         'No comments yet. Be the first to say something.',
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.7),
-        ),
+        style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
       ),
     );
   }
@@ -712,12 +833,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF171C38), Color(0xFF101428)],
-        ),
-        border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
-        ),
+        gradient: const LinearGradient(colors: [Color(0xFF171C38), Color(0xFF101428)]),
+        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.3),
@@ -752,20 +869,51 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(
-            child: _JoinButton(
+          if (widget.event.hostId != MainWrapper.loggedInUser.id.toString()) ...[
+            Expanded(
+              child: _RegistrationButton(
+                label: _registrationButtonLabel,
+                isDestructive: _registration != null,
+                isEnabled: !_isLoadingRegistration && !_isUpdatingRegistration,
+                onPressed: _registration == null ? _handleJoinPressed : _handleUnregister,
+              ),
+            ),
+          ]
+          else ...[
+            GradientButton(
               onPressed: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (context) => JoinEventPage(event: widget.event),
-                  ),
+                  MaterialPageRoute(builder: (context) => EditEventPage(event: widget.event)),
                 );
               },
+              label: "Edit event",
             ),
-          ),
+          ],
         ],
       ),
     );
+  }
+
+  String get _registrationButtonLabel {
+    if (_isLoadingRegistration) {
+      return 'Checking...';
+    }
+    if (_isUpdatingRegistration) {
+      return _registration == null ? 'Joining...' : 'Unregistering...';
+    }
+    return _registration == null ? 'Join event' : 'Unregister';
+  }
+
+  Future<void> _handleJoinPressed() async {
+    final joined = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (context) => JoinEventPage(event: widget.event)),
+    );
+    if (!mounted) {
+      return;
+    }
+    if (joined == true) {
+      await _loadRegistration();
+    }
   }
 
   String _formatStatus(EventStatus status) {
@@ -777,10 +925,18 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
   }
 }
 
-class _JoinButton extends StatelessWidget {
+class _RegistrationButton extends StatelessWidget {
+  final String label;
+  final bool isDestructive;
+  final bool isEnabled;
   final VoidCallback onPressed;
 
-  const _JoinButton({required this.onPressed});
+  const _RegistrationButton({
+    required this.label,
+    required this.isDestructive,
+    required this.isEnabled,
+    required this.onPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -789,19 +945,24 @@ class _JoinButton extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onPressed,
+          onTap: isEnabled ? onPressed : null,
           child: Ink(
             height: 48,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF9B6CFF), Color(0xFF6EA8FF)],
-              ),
+            decoration: BoxDecoration(
+              gradient: isEnabled
+                  ? LinearGradient(
+                      colors: isDestructive
+                          ? const [Color(0xFFFF6B6B), Color(0xFFFF4FB2)]
+                          : const [Color(0xFF9B6CFF), Color(0xFF6EA8FF)],
+                    )
+                  : null,
+              color: isEnabled ? null : Colors.white.withValues(alpha: 0.1),
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'Join event',
+                label,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Colors.white.withValues(alpha: isEnabled ? 1 : 0.6),
                   fontWeight: FontWeight.w600,
                   fontSize: 16,
                 ),

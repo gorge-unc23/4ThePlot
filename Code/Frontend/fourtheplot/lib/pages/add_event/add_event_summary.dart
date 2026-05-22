@@ -119,9 +119,16 @@ class _AddEventSummaryPageState extends State<AddEventSummaryPage> {
                 ),
                 const SizedBox(height: 12),
                 _SummaryRow(label: 'Location', value: draft.locationAddress),
+                _SummaryRow(label: 'City', value: draft.city),
                 _SummaryRow(
                   label: 'Venue',
                   value: draft.venueName.isEmpty ? 'N/A' : draft.venueName,
+                ),
+                _SummaryRow(
+                  label: 'Map point',
+                  value: draft.latitude == null || draft.longitude == null
+                      ? 'Not selected'
+                      : '${draft.latitude!.toStringAsFixed(5)}, ${draft.longitude!.toStringAsFixed(5)}',
                 ),
                 _SummaryRow(label: 'Date & time', value: dateLabel),
                 _SummaryRow(label: 'Price', value: priceLabel),
