@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:fourtheplot/database_manager.dart';
+import 'package:fourtheplot/models/admin/admin_models.dart';
 import 'package:fourtheplot/models/user.dart';
+import 'package:fourtheplot/pages/admin/admin_widgets.dart';
+import 'package:intl/intl.dart';
 
 class AdminHostVerificationPage extends StatefulWidget {
   const AdminHostVerificationPage({super.key});
@@ -10,141 +13,70 @@ class AdminHostVerificationPage extends StatefulWidget {
 }
 
 class _AdminHostVerificationPageState extends State<AdminHostVerificationPage> {
-  List<User> _users = const [];
+  List<AdminHostVerificationRequest> _requests = const [];
   bool _isLoading = true;
-  int? _updatingUserId;
   String? _errorMessage;
+  String? _statusFilter;
 
   @override
   void initState() {
     super.initState();
-    _loadUsers();
+    _loadRequests();
   }
 
-  Future<void> _loadUsers() async {
+  Future<void> _loadRequests() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
-
-    final result = await DatabaseHelper.instance.getNotTrustedUsers();
-    if (!mounted) {
-      return;
-    }
-
-    if (!result.success || result.data is! List<User>) {
+    final result = await DatabaseHelper.instance.getAdminHostVerifications(
+      status: _statusFilter,
+    );
+    if (!mounted) return;
+    if (!result.success || result.data is! List<AdminHostVerificationRequest>) {
       setState(() {
-        _users = const [];
+        _requests = const [];
         _isLoading = false;
         _errorMessage = result.message;
       });
       return;
     }
-
-    final users = List<User>.from(result.data as List<User>)
-      ..sort((a, b) => a.displayName.compareTo(b.displayName));
     setState(() {
-      _users = users;
+      _requests = result.data as List<AdminHostVerificationRequest>;
       _isLoading = false;
     });
-  }
-
-  Future<void> _openUser(User user) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => AdminHostVerificationDetailsPage(
-          user: user,
-          onApprove: () => _approveUser(user),
-        ),
-      ),
-    );
-  }
-
-  Future<bool> _approveUser(User user) async {
-    if (_updatingUserId != null) {
-      return false;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Approve host?'),
-        content: Text('Mark ${user.displayName} as a trusted host.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Approve'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) {
-      return false;
-    }
-
-    setState(() {
-      _updatingUserId = user.id;
-    });
-    final result = await DatabaseHelper.instance.markUserAsTrusted(user);
-    if (!mounted) {
-      return false;
-    }
-    setState(() {
-      _updatingUserId = null;
-    });
-
-    if (!result.success) {
-      _showSnackBar('Could not approve host: ${result.message}');
-      return false;
-    }
-
-    setState(() {
-      _users = _users.where((item) => item.id != user.id).toList();
-    });
-    _showSnackBar('Host approved.');
-    return true;
-  }
-
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0C1021),
+        foregroundColor: Colors.white,
+        title: const Text('Host Verification'),
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadRequests,
+        child: ListView(
           padding: const EdgeInsets.all(10),
-          child: RefreshIndicator(
-            onRefresh: _loadUsers,
-            child: ListView(
-              children: [
-                const SizedBox(height: 6),
-                const Text(
-                  'Host Verification',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Review hosts waiting for trusted status',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
-                ),
-                const SizedBox(height: 20),
-                _buildContent(),
+          children: [
+            AdminFilterBar(
+              values: const [
+                'pending',
+                'pending_documents',
+                'approved',
+                'rejected',
+                'suspected_fraud',
               ],
+              selected: _statusFilter,
+              onChanged: (value) {
+                setState(() => _statusFilter = value);
+                _loadRequests();
+              },
             ),
-          ),
+            const SizedBox(height: 16),
+            _buildContent(),
+          ],
         ),
       ),
     );
@@ -157,71 +89,56 @@ class _AdminHostVerificationPageState extends State<AdminHostVerificationPage> {
         child: Center(child: CircularProgressIndicator()),
       );
     }
-
     if (_errorMessage != null) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32),
-        child: Column(
-          children: [
-            Text(
-              'Could not load host requests: $_errorMessage',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(onPressed: _loadUsers, child: const Text('Try again')),
-          ],
-        ),
+      return AdminErrorState(
+        message: 'Could not load host verifications: $_errorMessage',
+        onRetry: _loadRequests,
       );
     }
-
-    if (_users.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1B1F),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-        ),
-        child: Text(
-          'There are no hosts waiting for verification.',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
-        ),
-      );
+    if (_requests.isEmpty) {
+      return const AdminEmptyState(message: 'No host verification requests found.');
     }
-
-    return Column(children: _users.map(_buildUserCard).toList());
+    return Column(children: _requests.map(_buildRequestCard).toList());
   }
 
-  Widget _buildUserCard(User user) {
-    final businessName = user.businessProfile?.name.trim();
-    final isUpdating = _updatingUserId == user.id;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1B1F),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: () => _openUser(user),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
+  Widget _buildRequestCard(AdminHostVerificationRequest request) {
+    final host = request.host;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: AdminSectionCard(
+        child: InkWell(
+          onTap: () async {
+            await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) =>
+                    AdminHostVerificationDetailsPage(requestId: request.id),
+              ),
+            );
+            _loadRequests();
+          },
           child: Row(
             children: [
-              _buildAvatar(user),
+              _Avatar(user: host),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Row(
+                      children: [
+                        AdminStatusChip(label: request.status),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${request.documents.length} docs',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.55)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
                     Text(
-                      businessName?.isNotEmpty == true
-                          ? businessName!
-                          : user.displayName,
+                      host?.businessProfile?.name.isNotEmpty == true
+                          ? host!.businessProfile!.name
+                          : host?.displayName ?? 'Host #${request.hostUserId}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -229,35 +146,18 @@ class _AdminHostVerificationPageState extends State<AdminHostVerificationPage> {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      user.email,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      'Status: ${userStatusToString(user.status)}',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        fontSize: 12,
+                    if (request.submittedAt != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormat('MMM d, h:mm a').format(request.submittedAt!),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.45),
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
-              ),
-              const SizedBox(width: 10),
-              IconButton(
-                onPressed: isUpdating ? null : () => _approveUser(user),
-                tooltip: 'Approve host',
-                icon: isUpdating
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.verified, color: Color(0xFF22D3EE)),
               ),
               const Icon(Icons.chevron_right, color: Colors.white54),
             ],
@@ -266,9 +166,197 @@ class _AdminHostVerificationPageState extends State<AdminHostVerificationPage> {
       ),
     );
   }
+}
 
-  Widget _buildAvatar(User user) {
-    final logoUrl = user.businessProfile?.logoUrl;
+class AdminHostVerificationDetailsPage extends StatefulWidget {
+  final int requestId;
+
+  const AdminHostVerificationDetailsPage({super.key, required this.requestId});
+
+  @override
+  State<AdminHostVerificationDetailsPage> createState() =>
+      _AdminHostVerificationDetailsPageState();
+}
+
+class _AdminHostVerificationDetailsPageState
+    extends State<AdminHostVerificationDetailsPage> {
+  AdminHostVerificationRequest? _request;
+  bool _isLoading = true;
+  bool _isSubmitting = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRequest();
+  }
+
+  Future<void> _loadRequest() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    final result = await DatabaseHelper.instance.getAdminHostVerification(widget.requestId);
+    if (!mounted) return;
+    if (!result.success || result.data is! AdminHostVerificationRequest) {
+      setState(() {
+        _request = null;
+        _isLoading = false;
+        _errorMessage = result.message;
+      });
+      return;
+    }
+    setState(() {
+      _request = result.data as AdminHostVerificationRequest;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _review(String status) async {
+    final reason = await showAdminReasonDialog(
+      context,
+      title: status.replaceAll('_', ' '),
+    );
+    if (reason == null || _request == null) return;
+    setState(() => _isSubmitting = true);
+    final result = await DatabaseHelper.instance.reviewAdminHostVerification(
+      _request!.id,
+      status: status,
+      reason: reason,
+    );
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+    if (!result.success) {
+      _showSnackBar('Review failed: ${result.message}');
+      return;
+    }
+    _showSnackBar('Host verification updated.');
+    _loadRequest();
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0C1021),
+        foregroundColor: Colors.white,
+        title: const Text('Host Details'),
+      ),
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_errorMessage != null) {
+      return ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          AdminErrorState(
+            message: 'Could not load request: $_errorMessage',
+            onRetry: _loadRequest,
+          ),
+        ],
+      );
+    }
+    final request = _request!;
+    final host = request.host;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        AdminSectionCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AdminStatusChip(label: request.status),
+              const SizedBox(height: 14),
+              _info('Host', host?.displayName ?? 'Host #${request.hostUserId}'),
+              _info('Email', host?.email ?? 'Unknown'),
+              _info('Business', host?.businessProfile?.name ?? 'Not provided'),
+              _info('Status', host != null ? userStatusToString(host.status) : 'Unknown'),
+              _info('Documents', request.documents.length.toString()),
+              if (request.reviewReason?.isNotEmpty == true)
+                _info('Review reason', request.reviewReason!),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        AdminSectionCard(
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ElevatedButton(
+                onPressed: _isSubmitting ? null : () => _review('approved'),
+                child: const Text('Approve'),
+              ),
+              OutlinedButton(
+                onPressed: _isSubmitting ? null : () => _review('pending_documents'),
+                child: const Text('Request docs'),
+              ),
+              OutlinedButton(
+                onPressed: _isSubmitting ? null : () => _review('rejected'),
+                child: const Text('Reject'),
+              ),
+              OutlinedButton(
+                onPressed: _isSubmitting ? null : () => _review('suspected_fraud'),
+                child: const Text('Fraud'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        ...request.documents.map(
+          (document) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: AdminSectionCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AdminStatusChip(label: document.status),
+                  const SizedBox(height: 8),
+                  _info('Type', document.documentType),
+                  _info('URL', document.documentUrl),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _info(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
+          const SizedBox(height: 3),
+          Text(value, style: const TextStyle(color: Colors.white)),
+        ],
+      ),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  final User? user;
+
+  const _Avatar({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final logoUrl = user?.businessProfile?.logoUrl;
     if (logoUrl != null && logoUrl.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(14),
@@ -277,15 +365,17 @@ class _AdminHostVerificationPageState extends State<AdminHostVerificationPage> {
           width: 52,
           height: 52,
           fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => _buildFallbackAvatar(user),
+          errorBuilder: (context, error, stackTrace) => _fallback(),
         ),
       );
     }
-
-    return _buildFallbackAvatar(user);
+    return _fallback();
   }
 
-  Widget _buildFallbackAvatar(User user) {
+  Widget _fallback() {
+    final source = user?.businessProfile?.name.isNotEmpty == true
+        ? user!.businessProfile!.name
+        : user?.displayName ?? '?';
     return Container(
       width: 52,
       height: 52,
@@ -295,147 +385,9 @@ class _AdminHostVerificationPageState extends State<AdminHostVerificationPage> {
       ),
       child: Center(
         child: Text(
-          _initial(user),
+          source.isNotEmpty ? source[0].toUpperCase() : '?',
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
         ),
-      ),
-    );
-  }
-
-  String _initial(User user) {
-    final source = user.businessProfile?.name.trim().isNotEmpty == true
-        ? user.businessProfile!.name
-        : user.displayName;
-    return source.isNotEmpty ? source[0].toUpperCase() : '?';
-  }
-}
-
-class AdminHostVerificationDetailsPage extends StatelessWidget {
-  final User user;
-  final Future<bool> Function() onApprove;
-
-  const AdminHostVerificationDetailsPage({
-    super.key,
-    required this.user,
-    required this.onApprove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final businessProfile = user.businessProfile;
-    final credibility = user.hostCredibility;
-    final businessName = businessProfile?.name.trim();
-
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0C1021),
-        foregroundColor: Colors.white,
-        title: const Text('Host Details'),
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A1B1F),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    businessName?.isNotEmpty == true
-                        ? businessName!
-                        : user.displayName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    user.email,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInfoRow('User', user.displayName),
-                  _buildInfoRow('Phone', user.phone ?? 'Not provided'),
-                  _buildInfoRow('Role', userRoleToString(user.role)),
-                  _buildInfoRow('Status', userStatusToString(user.status)),
-                  _buildInfoRow(
-                    'Published',
-                    businessProfile?.isPublished == true ? 'Yes' : 'No',
-                  ),
-                  _buildInfoRow('Website', businessProfile?.websiteUrl ?? 'Not provided'),
-                  _buildInfoRow(
-                    'Rating',
-                    (credibility?.rating ?? 0).toStringAsFixed(1),
-                  ),
-                  _buildInfoRow(
-                    'Reviews',
-                    (credibility?.reviewCount ?? 0).toString(),
-                  ),
-                  _buildInfoRow(
-                    'Trusted',
-                    credibility?.trusted == true ? 'Yes' : 'No',
-                  ),
-                  if (businessProfile?.description?.trim().isNotEmpty == true) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      businessProfile!.description!.trim(),
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.75),
-                        height: 1.45,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () async {
-                final approved = await onApprove();
-                if (approved && context.mounted) {
-                  Navigator.of(context).pop();
-                }
-              },
-              icon: const Icon(Icons.verified),
-              label: const Text('Approve trusted host'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 88,
-            child: Text(
-              label,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.55)),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:fourtheplot/models/admin/admin_models.dart';
 import 'package:fourtheplot/models/registration.dart';
 import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -121,11 +122,13 @@ class DatabaseHelper {
     if (savedServerIp != null && savedServerIp.isNotEmpty) {
       serverIp = _normalizeServerIp(savedServerIp);
     }
+    Event.currentServerIp = serverIp;
   }
 
   Future<void> saveServerIp(String value) async {
-    final normalizedServerIp = _normalizeServerIp(value);
+    final normalizedServerIp = _normalizeServerIp("$value:8000");
     serverIp = normalizedServerIp;
+    Event.currentServerIp = normalizedServerIp;
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_serverIpKey, normalizedServerIp);
@@ -244,6 +247,14 @@ class DatabaseHelper {
       } else if (method == 'PUT') {
         response = await http
             .put(
+              uri,
+              headers: _headers(authenticated: authenticated),
+              body: jsonEncode(body ?? {}),
+            )
+            .timeout(_requestTimeout);
+      } else if (method == 'PATCH') {
+        response = await http
+            .patch(
               uri,
               headers: _headers(authenticated: authenticated),
               body: jsonEncode(body ?? {}),
@@ -443,6 +454,268 @@ class DatabaseHelper {
 
   Future<ApiResult> deleteUser(int userId) async {
     return _request('DELETE', 'user/$userId');
+  }
+
+  Future<ApiResult> getAdminReports({String? status, String? severity}) async {
+    final result = await _request(
+      'GET',
+      'admin/reports',
+      query: {'status': status, 'severity': severity},
+    );
+    if (!result.success) return result;
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AdminSafetyReport.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> getAdminReport(int reportId) async {
+    final result = await _request('GET', 'admin/reports/$reportId');
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminSafetyReport.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> applyAdminModerationAction(
+    int reportId, {
+    required String action,
+    required String reason,
+  }) async {
+    final result = await _request(
+      'POST',
+      'admin/reports/$reportId/moderation-actions',
+      body: {'action': action, 'reason': reason},
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminModerationAction.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> updateAdminReportStatus(
+    int reportId, {
+    required String status,
+    required String reason,
+  }) async {
+    final result = await _request(
+      'PATCH',
+      'admin/reports/$reportId/status',
+      body: {'status': status, 'reason': reason},
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminSafetyReport.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> getAdminHostVerifications({String? status}) async {
+    final result = await _request(
+      'GET',
+      'admin/host-verifications',
+      query: {'status': status},
+    );
+    if (!result.success) return result;
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AdminHostVerificationRequest.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> getAdminHostVerification(int requestId) async {
+    final result = await _request('GET', 'admin/host-verifications/$requestId');
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminHostVerificationRequest.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> addAdminHostVerificationDocument(
+    int requestId, {
+    required String documentType,
+    required String documentUrl,
+    required String status,
+    required String reason,
+  }) async {
+    final result = await _request(
+      'POST',
+      'admin/host-verifications/$requestId/documents',
+      body: {
+        'document_type': documentType,
+        'document_url': documentUrl,
+        'status': status,
+        'reason': reason,
+      },
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminHostVerificationDocument.fromJson(
+        result.data as Map<String, dynamic>,
+      ),
+    );
+  }
+
+  Future<ApiResult> reviewAdminHostVerification(
+    int requestId, {
+    required String status,
+    required String reason,
+  }) async {
+    final result = await _request(
+      'PATCH',
+      'admin/host-verifications/$requestId/review',
+      body: {'status': status, 'reason': reason},
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminHostVerificationRequest.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> getAdminNotifications() async {
+    final result = await _request('GET', 'admin/notifications');
+    if (!result.success) return result;
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AdminGlobalNotification.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> createAdminNotification(Map<String, dynamic> payload) async {
+    final result = await _request('POST', 'admin/notifications', body: payload);
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminGlobalNotification.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> updateAdminNotification(
+    int notificationId,
+    Map<String, dynamic> payload,
+  ) async {
+    final result = await _request(
+      'PATCH',
+      'admin/notifications/$notificationId',
+      body: payload,
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminGlobalNotification.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> getAdminMetricsOverview({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final result = await _request(
+      'GET',
+      'admin/metrics/overview',
+      query: {
+        'startDate': _dateQuery(startDate),
+        'endDate': _dateQuery(endDate),
+      },
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminMetricsOverview.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> getAdminDailyMetrics({DateTime? startDate, DateTime? endDate}) async {
+    final result = await _request(
+      'GET',
+      'admin/metrics/daily',
+      query: {
+        'startDate': _dateQuery(startDate),
+        'endDate': _dateQuery(endDate),
+      },
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    final days = (result.data['days'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AdminDailyMetrics.fromJson)
+        .toList();
+    return result.copyWith(data: days);
+  }
+
+  Future<ApiResult> getAdminDisputes({String? status}) async {
+    final result = await _request(
+      'GET',
+      'admin/disputes',
+      query: {'status': status},
+    );
+    if (!result.success) return result;
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AdminDisputeCase.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> getAdminDispute(int disputeId) async {
+    final result = await _request('GET', 'admin/disputes/$disputeId');
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminDisputeCase.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> resolveAdminDispute(
+    int disputeId, {
+    required String decision,
+    required String reason,
+    required String status,
+  }) async {
+    final result = await _request(
+      'PATCH',
+      'admin/disputes/$disputeId/decision',
+      body: {'decision': decision, 'reason': reason, 'status': status},
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminDisputeCase.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> getAdminDisputeChatLogs(int disputeId) async {
+    final result = await _request('GET', 'admin/disputes/$disputeId/chat-logs');
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminChatLogsResponse.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> getAdminAuditLogs({int page = 1, int pageSize = 20}) async {
+    final result = await _request(
+      'GET',
+      'admin/audit-logs',
+      query: {'page': page, 'pageSize': pageSize},
+    );
+    if (!result.success) return result;
+    if (result.data is Map<String, dynamic>) {
+      return result.copyWith(
+        data: AdminAuditLogPage.fromJson(result.data as Map<String, dynamic>),
+      );
+    }
+    final items = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AdminAuditLog.fromJson)
+        .toList();
+    return result.copyWith(
+      data: AdminAuditLogPage(
+        total: items.length,
+        page: page,
+        pageSize: pageSize,
+        items: items,
+      ),
+    );
+  }
+
+  String? _dateQuery(DateTime? value) {
+    return value?.toIso8601String().split('T').first;
   }
 
   Future<ApiResult> getAllEvents({bool useCache = true}) async {

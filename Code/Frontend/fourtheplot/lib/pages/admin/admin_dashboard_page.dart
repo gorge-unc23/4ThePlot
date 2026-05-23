@@ -1,62 +1,118 @@
 import 'package:flutter/material.dart';
+import 'package:fourtheplot/database_manager.dart';
+import 'package:fourtheplot/models/admin/admin_models.dart';
+import 'package:fourtheplot/pages/admin/admin_audit_logs_page.dart';
+import 'package:fourtheplot/pages/admin/admin_disputes_page.dart';
 import 'package:fourtheplot/pages/admin/admin_events_page.dart';
 import 'package:fourtheplot/pages/admin/admin_host_verification_page.dart';
+import 'package:fourtheplot/pages/admin/admin_metrics_page.dart';
+import 'package:fourtheplot/pages/admin/admin_notifications_page.dart';
+import 'package:fourtheplot/pages/admin/admin_reports_page.dart';
+import 'package:fourtheplot/pages/admin/admin_widgets.dart';
 
-class AdminDashboardPage extends StatelessWidget {
+class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
 
-  static const _tiles = [
-    // _AdminTileData(
-    //   title: 'Safety Reports',
-    //   description: 'Review queued reports and prepare moderation decisions.',
-    //   icon: Icons.report_outlined,
-    //   color: Color(0xFFFF6B6B),
-    //   isAvailable: false,
-    // ),
+  @override
+  State<AdminDashboardPage> createState() => _AdminDashboardPageState();
+}
+
+class _AdminDashboardPageState extends State<AdminDashboardPage> {
+  AdminMetricsOverview? _overview;
+  bool _isLoadingMetrics = true;
+  String? _metricsError;
+
+  static final _tiles = [
+    _AdminTileData(
+      title: 'Safety Reports',
+      description: 'Review queued reports and prepare moderation decisions.',
+      icon: Icons.report_outlined,
+      color: const Color(0xFFFF6B6B),
+      builder: () => const AdminReportsPage(),
+    ),
     _AdminTileData(
       title: 'Host Verification',
       description: 'Verify submitted host documents and approval requests.',
       icon: Icons.verified_user_outlined,
-      color: Color(0xFF22D3EE),
-      isAvailable: true,
+      color: const Color(0xFF22D3EE),
+      builder: () => const AdminHostVerificationPage(),
     ),
-    // _AdminTileData(
-    //   title: 'Disputes',
-    //   description: 'Review evidence, chat logs, and refund outcomes.',
-    //   icon: Icons.gavel_outlined,
-    //   color: Color(0xFFFACC15),
-    //   isAvailable: false,
-    // ),
-    // _AdminTileData(
-    //   title: 'Global Notifications',
-    //   description: 'Publish platform-wide announcements and banners.',
-    //   icon: Icons.campaign_outlined,
-    //   color: Color(0xFFC084FC),
-    //   isAvailable: false,
-    // ),
-    // _AdminTileData(
-    //   title: 'Growth KPIs',
-    //   description: 'Monitor DAU, new events, and platform growth signals.',
-    //   icon: Icons.insights_outlined,
-    //   color: Color(0xFF34D399),
-    //   isAvailable: false,
-    // ),
+    _AdminTileData(
+      title: 'Disputes',
+      description: 'Review evidence, chat logs, and refund outcomes.',
+      icon: Icons.gavel_outlined,
+      color: const Color(0xFFFACC15),
+      builder: () => const AdminDisputesPage(),
+    ),
+    _AdminTileData(
+      title: 'Global Notifications',
+      description: 'Publish platform-wide announcements and banners.',
+      icon: Icons.campaign_outlined,
+      color: const Color(0xFFC084FC),
+      builder: () => const AdminNotificationsPage(),
+    ),
+    _AdminTileData(
+      title: 'Growth KPIs',
+      description: 'Monitor DAU, new events, and platform growth signals.',
+      icon: Icons.insights_outlined,
+      color: const Color(0xFF34D399),
+      builder: () => const AdminMetricsPage(),
+    ),
+    _AdminTileData(
+      title: 'Audit Logs',
+      description: 'Review admin actions and moderation reasons.',
+      icon: Icons.history,
+      color: const Color(0xFFFB923C),
+      builder: () => const AdminAuditLogsPage(),
+    ),
     _AdminTileData(
       title: 'Event Moderation',
       description: 'Inspect events and remove events or comments.',
       icon: Icons.event_busy_outlined,
-      color: Color(0xFF6EA8FF),
-      isAvailable: true,
+      color: const Color(0xFF6EA8FF),
+      builder: () => const AdminEventsPage(),
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMetrics();
+  }
+
+  Future<void> _loadMetrics() async {
+    setState(() {
+      _isLoadingMetrics = true;
+      _metricsError = null;
+    });
+    final now = DateTime.now();
+    final result = await DatabaseHelper.instance.getAdminMetricsOverview(
+      startDate: now.subtract(Duration(days: now.weekday - 1)),
+      endDate: now,
+    );
+    if (!mounted) return;
+    if (!result.success || result.data is! AdminMetricsOverview) {
+      setState(() {
+        _overview = null;
+        _isLoadingMetrics = false;
+        _metricsError = result.message;
+      });
+      return;
+    }
+    setState(() {
+      _overview = result.data as AdminMetricsOverview;
+      _isLoadingMetrics = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(10),
+        child: RefreshIndicator(
+          onRefresh: _loadMetrics,
           child: ListView(
+            padding: const EdgeInsets.all(10),
             children: [
               const SizedBox(height: 6),
               const Text(
@@ -72,11 +128,64 @@ class AdminDashboardPage extends StatelessWidget {
                 'Moderation and platform operations',
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
+              _buildMetrics(),
+              const SizedBox(height: 18),
               ..._tiles.map((tile) => _buildTile(context, tile)),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMetrics() {
+    if (_isLoadingMetrics) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 28),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_metricsError != null || _overview == null) {
+      return AdminErrorState(
+        message: 'Could not load metrics: $_metricsError',
+        onRetry: _loadMetrics,
+      );
+    }
+    final overview = _overview!;
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      childAspectRatio: 1.65,
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      children: [
+        _metric('Pending reports', overview.pendingReports),
+        _metric('Host requests', overview.pendingHostVerifications),
+        _metric('New users\nthis week', overview.newUsers),
+        _metric('New events\nthis week', overview.newEvents),
+      ],
+    );
+  }
+
+  Widget _metric(String label, int value) {
+    return AdminSectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            value.toString(),
+            style: const TextStyle(
+              color: Color(0xFF6EA8FF),
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.65))),
+        ],
       ),
     );
   }
@@ -91,7 +200,11 @@ class AdminDashboardPage extends StatelessWidget {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: () => _openTile(context, tile),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => tile.builder()),
+          );
+        },
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -131,107 +244,7 @@ class AdminDashboardPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              if (!tile.isAvailable)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'API needed',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.65),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                )
-              else
-                const Icon(Icons.chevron_right, color: Colors.white54),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _openTile(BuildContext context, _AdminTileData tile) {
-    if (tile.title == 'Event Moderation') {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (context) => const AdminEventsPage()),
-      );
-      return;
-    }
-
-    if (tile.title == 'Host Verification') {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (context) => const AdminHostVerificationPage()),
-      );
-      return;
-    }
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => AdminUnavailablePage(
-          title: tile.title,
-          description: tile.description,
-        ),
-      ),
-    );
-  }
-}
-
-class AdminUnavailablePage extends StatelessWidget {
-  final String title;
-  final String description;
-
-  const AdminUnavailablePage({
-    super.key,
-    required this.title,
-    required this.description,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0C1021),
-        foregroundColor: Colors.white,
-        title: Text(title),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1B1F),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                description,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'This use case is scaffolded in the UI, but the backend endpoint is not available yet.',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.55)),
-              ),
+              const Icon(Icons.chevron_right, color: Colors.white54),
             ],
           ),
         ),
@@ -245,13 +258,13 @@ class _AdminTileData {
   final String description;
   final IconData icon;
   final Color color;
-  final bool isAvailable;
+  final Widget Function() builder;
 
   const _AdminTileData({
     required this.title,
     required this.description,
     required this.icon,
     required this.color,
-    required this.isAvailable,
+    required this.builder,
   });
 }

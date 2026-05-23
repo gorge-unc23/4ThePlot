@@ -21,44 +21,32 @@ class MyApp extends StatelessWidget {
       themeMode: ThemeMode.dark,
       darkTheme: ThemeData(
         textTheme: TextTheme(
-          bodySmall: TextStyle(
-            color: Colors.white,
-          ),
-          bodyMedium: TextStyle(
-            color: Colors.white,
-          ),
-          bodyLarge: TextStyle(
-            color: Colors.white,
-          ),
-          headlineLarge: TextStyle(
-            color: Colors.white,
-          ),
-          headlineMedium: TextStyle(
-            color: Colors.white,
-          ),
-          headlineSmall: TextStyle(
-            color: Colors.white,
-          ),
-          titleMedium: TextStyle(
-            color: Colors.white,
-          ),
+          bodySmall: TextStyle(color: Colors.white),
+          bodyMedium: TextStyle(color: Colors.white),
+          bodyLarge: TextStyle(color: Colors.white),
+          headlineLarge: TextStyle(color: Colors.white),
+          headlineMedium: TextStyle(color: Colors.white),
+          headlineSmall: TextStyle(color: Colors.white),
+          titleMedium: TextStyle(color: Colors.white),
         ),
+        dialogTheme: DialogThemeData(backgroundColor: Color(0xFF191B1F)),
+        brightness: Brightness.dark,
         appBarTheme: AppBarThemeData(
           backgroundColor: Colors.black,
           foregroundColor: Colors.white,
         ),
         textButtonTheme: TextButtonThemeData(
           style: ButtonStyle(
-            overlayColor: WidgetStateProperty.all(Colors.blueAccent.withValues(alpha: 0.2)),
-            foregroundColor: WidgetStatePropertyAll(Colors.white)
+            overlayColor: WidgetStateProperty.all(
+              Colors.blueAccent.withValues(alpha: 0.2),
+            ),
+            foregroundColor: WidgetStatePropertyAll(Colors.white),
           ),
         ),
         // scaffoldBackgroundColor: const Color.fromARGB(255, 29, 27, 27)
         scaffoldBackgroundColor: const Color(0xFF0F1012),
       ),
-      theme: ThemeData(
-        colorScheme: .fromSeed(seedColor: Colors.blue),
-      ),
+      theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.blue)),
       home: const LandingPage(),
     );
   }
