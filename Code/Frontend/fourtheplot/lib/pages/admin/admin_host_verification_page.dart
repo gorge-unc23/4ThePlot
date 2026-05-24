@@ -4,6 +4,7 @@ import 'package:fourtheplot/models/admin/admin_models.dart';
 import 'package:fourtheplot/models/user.dart';
 import 'package:fourtheplot/pages/admin/admin_widgets.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AdminHostVerificationPage extends StatefulWidget {
   const AdminHostVerificationPage({super.key});
@@ -63,10 +64,8 @@ class _AdminHostVerificationPageState extends State<AdminHostVerificationPage> {
             AdminFilterBar(
               values: const [
                 'pending',
-                'pending_documents',
                 'approved',
                 'rejected',
-                'suspected_fraud',
               ],
               selected: _statusFilter,
               onChanged: (value) {
@@ -230,8 +229,27 @@ class _AdminHostVerificationDetailsPageState
       _showSnackBar('Review failed: ${result.message}');
       return;
     }
-    _showSnackBar('Host verification updated.');
-    _loadRequest();
+    if (result.data is AdminHostVerificationRequest) {
+      setState(() => _request = result.data as AdminHostVerificationRequest);
+    }
+    _showSnackBar(
+      status == 'approved'
+          ? 'Host approved and marked as trusted.'
+          : 'Host verification updated.',
+    );
+  }
+
+  Future<void> _openDocument(AdminHostVerificationDocument document) async {
+    final uri = Uri.tryParse(document.documentUrl);
+    if (uri == null || !uri.hasScheme) {
+      _showSnackBar('Invalid document URL.');
+      return;
+    }
+
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      _showSnackBar('Could not open document.');
+    }
   }
 
   void _showSnackBar(String message) {
@@ -282,6 +300,10 @@ class _AdminHostVerificationDetailsPageState
               _info('Email', host?.email ?? 'Unknown'),
               _info('Business', host?.businessProfile?.name ?? 'Not provided'),
               _info('Status', host != null ? userStatusToString(host.status) : 'Unknown'),
+              _info(
+                'Trusted',
+                host?.hostCredibility?.trusted == true ? 'Verified' : 'Unverified',
+              ),
               _info('Documents', request.documents.length.toString()),
               if (request.reviewReason?.isNotEmpty == true)
                 _info('Review reason', request.reviewReason!),
@@ -289,31 +311,25 @@ class _AdminHostVerificationDetailsPageState
           ),
         ),
         const SizedBox(height: 16),
-        AdminSectionCard(
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ElevatedButton(
-                onPressed: _isSubmitting ? null : () => _review('approved'),
-                child: const Text('Approve'),
-              ),
-              OutlinedButton(
-                onPressed: _isSubmitting ? null : () => _review('pending_documents'),
-                child: const Text('Request docs'),
-              ),
-              OutlinedButton(
-                onPressed: _isSubmitting ? null : () => _review('rejected'),
-                child: const Text('Reject'),
-              ),
-              OutlinedButton(
-                onPressed: _isSubmitting ? null : () => _review('suspected_fraud'),
-                child: const Text('Fraud'),
-              ),
-            ],
+        if (request.status != "approved" && request.status != "rejected") ...[
+          AdminSectionCard(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton(
+                  onPressed: _isSubmitting ? null : () => _review('approved'),
+                  child: const Text('Approve'),
+                ),
+                OutlinedButton(
+                  onPressed: _isSubmitting ? null : () => _review('rejected'),
+                  child: const Text('Reject'),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
+          const SizedBox(height: 16),
+        ],
         ...request.documents.map(
           (document) => Padding(
             padding: const EdgeInsets.only(bottom: 10),
@@ -325,6 +341,15 @@ class _AdminHostVerificationDetailsPageState
                   const SizedBox(height: 8),
                   _info('Type', document.documentType),
                   _info('URL', document.documentUrl),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _openDocument(document),
+                      icon: const Icon(Icons.open_in_new),
+                      label: const Text('View document'),
+                    ),
+                  ),
                 ],
               ),
             ),

@@ -196,6 +196,6 @@ Future<String?> showAdminReasonDialog(
       );
     },
   );
-  controller.dispose();
+  // controller.dispose();
   return reason;
 }

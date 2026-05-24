@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/models/event.dart';
+import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:fourtheplot/widgets/trending_event.dart';
 import 'package:location/location.dart';
 
@@ -43,44 +44,30 @@ class _DiscoverPageState extends State<DiscoverPage> {
     super.dispose();
   }
 
-  late LocationData _locationData;
   bool _allowedNearEvents = false;
 
   Future<void> _loadEvents() async {
-    Location location = Location();
-
-    bool serviceEnabled;
-    PermissionStatus permissionGranted;
-
-    serviceEnabled = await location.serviceEnabled();
-    if (!serviceEnabled) {
-      serviceEnabled = await location.requestService();
-      if (!serviceEnabled) {
-        return;
-      }
-    }
-
-    permissionGranted = await location.hasPermission();
-    if (permissionGranted == PermissionStatus.denied) {
-      permissionGranted = await location.requestPermission();
-      if (permissionGranted != PermissionStatus.granted) {
-        return;
-      }
-    }
-
-    _locationData = await location.getLocation();
-    _allowedNearEvents = true;
-
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _allowedNearEvents = false;
     });
 
     final resultTrending = await DatabaseHelper.instance.getTrendingEvents();
-    final resultNearby = await DatabaseHelper.instance.getNearbyEvents(
-      _locationData.latitude!,
-      _locationData.longitude!,
-    );
+    ApiResult? resultNearby;
+    try {
+      final locationData = await _getLocationData();
+      if (locationData != null &&
+          locationData.latitude != null &&
+          locationData.longitude != null) {
+        resultNearby = await DatabaseHelper.instance.getNearbyEvents(
+          locationData.latitude!,
+          locationData.longitude!,
+        );
+      }
+    } catch (_) {
+      resultNearby = null;
+    }
 
     if (!mounted) {
       return;
@@ -95,20 +82,49 @@ class _DiscoverPageState extends State<DiscoverPage> {
       return;
     }
 
-    if (!resultNearby.success || resultNearby.data is! List<Event>) {
+    if (resultNearby != null &&
+        (!resultNearby.success || resultNearby.data is! List<Event>)) {
       setState(() {
         _trendingEvents = const [];
         _isLoading = false;
-        _errorMessage = resultNearby.message;
+        _errorMessage = resultNearby?.message ?? 'nearby events unavailable';
       });
       return;
     }
 
     setState(() {
       _trendingEvents = resultTrending.data as List<Event>;
-      _nearbyEvents = resultNearby.data as List<Event>;
+      _nearbyEvents = resultNearby?.data is List<Event>
+          ? resultNearby!.data as List<Event>
+          : const [];
+      _allowedNearEvents = resultNearby?.data is List<Event>;
       _isLoading = false;
     });
+  }
+
+  Future<LocationData?> _getLocationData() async {
+    final location = Location();
+
+    var serviceEnabled = await location.serviceEnabled();
+    if (!serviceEnabled) {
+      serviceEnabled = await location.requestService();
+      if (!serviceEnabled) {
+        return null;
+      }
+    }
+
+    var permissionGranted = await location.hasPermission();
+    if (permissionGranted == PermissionStatus.denied) {
+      permissionGranted = await location.requestPermission();
+      if (permissionGranted != PermissionStatus.granted) {
+        return null;
+      }
+    }
+    if (permissionGranted == PermissionStatus.deniedForever) {
+      return null;
+    }
+
+    return location.getLocation().timeout(const Duration(seconds: 8));
   }
 
   Future<void> _performSearch(String query) async {
@@ -249,6 +265,13 @@ class _DiscoverPageState extends State<DiscoverPage> {
       );
     }
 
+    final visibleTrendingEvents = _trendingEvents
+        .where((event) => event.hostId != MainWrapper.loggedInUser.id.toString())
+        .toList();
+    final visibleNearbyEvents = _nearbyEvents
+        .where((event) => event.hostId != MainWrapper.loggedInUser.id.toString())
+        .toList(); //TODO: Filter from backend
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -257,7 +280,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
           style: TextStyle(fontWeight: FontWeight.w500, fontSize: 18),
         ),
         const SizedBox(height: 12),
-        if (_trendingEvents.isEmpty) ...[
+        if (visibleTrendingEvents.isEmpty) ...[
           Center(
             child: Text('No trending events found', style: TextStyle(color: Colors.grey)),
           ),
@@ -271,11 +294,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
               itemBuilder: (context, index) {
                 return SizedBox(
                   width: 320,
-                  child: TrendingEvent(event: _trendingEvents[index]),
+                  child: TrendingEvent(event: visibleTrendingEvents[index]),
                 );
               },
               separatorBuilder: (context, index) => const SizedBox(width: 12),
-              itemCount: _trendingEvents.length,
+              itemCount: visibleTrendingEvents.length,
             ),
           ),
         ],
@@ -286,7 +309,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
         ),
         const SizedBox(height: 12),
         if (_allowedNearEvents) ...[
-          if (_nearbyEvents.isEmpty) ...[
+          if (visibleNearbyEvents.isEmpty) ...[
             Center(
               child: Text("No nearby events found", style: TextStyle(color: Colors.grey)),
             ),
@@ -298,11 +321,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
               itemBuilder: (context, index) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10.0),
-                  child: TrendingEvent(event: _nearbyEvents[index]),
+                  child: TrendingEvent(event: visibleNearbyEvents[index]),
                 );
               },
               separatorBuilder: (context, index) => const SizedBox(width: 12),
-              itemCount: _nearbyEvents.length,
+              itemCount: visibleNearbyEvents.length,
             ),
           ],
         ] else ...[

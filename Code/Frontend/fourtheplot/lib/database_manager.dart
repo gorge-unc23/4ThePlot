@@ -573,6 +573,71 @@ class DatabaseHelper {
     );
   }
 
+  Future<ApiResult> uploadHostVerificationPdf({
+    required String path,
+    required String filename,
+  }) async {
+    final file = await http.MultipartFile.fromPath(
+      'document',
+      path,
+      filename: filename,
+      contentType: MediaType('application', 'pdf'),
+    );
+    final result = await _multipartRequest(
+      'POST',
+      'user/host-verification/documents/upload',
+      files: [file],
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) {
+      return result;
+    }
+    return result.copyWith(data: result.data as Map<String, dynamic>);
+  }
+
+  Future<ApiResult> getMyHostVerificationRequests() async {
+    final result = await _request('GET', 'user/host-verification');
+    if (!result.success) return result;
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AdminHostVerificationRequest.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> createMyHostVerificationRequest() async {
+    final result = await _request('POST', 'user/host-verification');
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminHostVerificationRequest.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> addMyHostVerificationDocument(
+    int requestId, {
+    required String documentType,
+    required String documentUrl,
+  }) async {
+    final result = await _request(
+      'POST',
+      'user/host-verification/$requestId/documents',
+      body: {
+        'document_type': documentType,
+        'document_url': documentUrl,
+        'status': 'submitted',
+      },
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminHostVerificationDocument.fromJson(
+        result.data as Map<String, dynamic>,
+      ),
+    );
+  }
+
+  Future<ApiResult> deleteMyHostVerificationRequest(int requestId) async {
+    return _request('DELETE', 'user/host-verification/$requestId');
+  }
+
   Future<ApiResult> getAdminNotifications() async {
     final result = await _request('GET', 'admin/notifications');
     if (!result.success) return result;
