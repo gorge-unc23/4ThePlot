@@ -5,6 +5,7 @@ import 'package:fourtheplot/pages/admin/admin_audit_logs_page.dart';
 import 'package:fourtheplot/pages/admin/admin_disputes_page.dart';
 import 'package:fourtheplot/pages/admin/admin_events_page.dart';
 import 'package:fourtheplot/pages/admin/admin_host_verification_page.dart';
+import 'package:fourtheplot/pages/admin/admin_hosts_management_page.dart';
 import 'package:fourtheplot/pages/admin/admin_metrics_page.dart';
 import 'package:fourtheplot/pages/admin/admin_notifications_page.dart';
 import 'package:fourtheplot/pages/admin/admin_reports_page.dart';
@@ -36,6 +37,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       icon: Icons.verified_user_outlined,
       color: const Color(0xFF22D3EE),
       builder: () => const AdminHostVerificationPage(),
+    ),
+    _AdminTileData(
+      title: 'Hosts Management',
+      description: 'Review host profiles and remove verified status.',
+      icon: Icons.storefront_outlined,
+      color: const Color(0xFF38BDF8),
+      builder: () => const AdminHostsManagementPage(),
     ),
     _AdminTileData(
       title: 'Disputes',

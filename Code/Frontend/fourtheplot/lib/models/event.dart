@@ -1,5 +1,7 @@
 // Core event model for Flutter, aligned with UML lifecycle states.
 
+import 'package:fourtheplot/services/photo_url_service.dart';
+
 enum EventStatus { draft, published, live, suspended, completed, archived }
 
 EventStatus eventStatusFromString(String value) {
@@ -139,8 +141,6 @@ class RecurrenceRule {
 }
 
 class Event {
-  static String? currentServerIp;
-
   final String id;
   final String title;
   final String description;
@@ -185,20 +185,6 @@ class Event {
   });
 
   bool get isFree => price <= 0;
-
-  static String normalizePhotoUrl(String url) {
-    final serverIp = currentServerIp;
-    if (serverIp == null || serverIp.isEmpty || url.isEmpty) {
-      return url;
-    }
-
-    final match = RegExp(r'^(http?://)([^/]+)(/photos/.*)$').firstMatch(url);
-    if (match == null) {
-      return url;
-    }
-
-    return '${match.group(1)}$serverIp${match.group(3)}';
-  }
 
   Event copyWith({
     String? id,
@@ -270,7 +256,9 @@ class Event {
           (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ?? const [],
       price: (json['price'] as num?)?.toDouble() ?? 0,
       currency: (json['currency'] as String?) ?? 'EUR',
-      coverImageUrl: normalizePhotoUrl((json['coverImageUrl'] as String?) ?? ''),
+      coverImageUrl: PhotoUrlService.normalizePhotoUrl(
+        json['coverImageUrl'] as String?,
+      ),
       trending: (json['trending'] as bool?) ?? false,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),

@@ -37,14 +37,7 @@ class AdminStatusChip extends StatelessWidget {
       case 'published':
         return const Color(0xFF34D399);
       case 'rejected':
-      case 'suspected_fraud':
-      case 'suspended':
         return const Color(0xFFFF6B6B);
-      case 'pending_documents':
-      case 'needs_evidence':
-      case 'pending_communication':
-      case 'escalated':
-        return const Color(0xFF22D3EE);
       default:
         return const Color(0xFF6EA8FF);
     }

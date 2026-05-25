@@ -27,6 +27,14 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadProfileEvents() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    await _refreshLoggedInUser();
+    if (!mounted) return;
+
     if (MainWrapper.loggedInUser.role == UserRole.business ||
         MainWrapper.loggedInUser.role == UserRole.admin) {
       setState(() {
@@ -37,11 +45,6 @@ class _ProfilePageState extends State<ProfilePage> {
       });
       return;
     }
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
 
     final userId = MainWrapper.loggedInUser.id;
     final results = await Future.wait([
@@ -75,6 +78,19 @@ class _ProfilePageState extends State<ProfilePage> {
       _upcomingJoinedEvents = upcomingJoinedEvents;
       _isLoading = false;
     });
+  }
+
+  Future<void> _refreshLoggedInUser() async {
+    final result = await DatabaseHelper.instance.getUser(MainWrapper.loggedInUser.id);
+    if (!mounted || !result.success || result.data is! User) {
+      return;
+    }
+
+    final user = result.data as User;
+    MainWrapper.loggedInUser = user;
+    await DatabaseHelper.instance.saveUser(user);
+    if (!mounted) return;
+    setState(() {});
   }
 
   List<Event> _eventsFromResult(ApiResult result) {
@@ -118,13 +134,26 @@ class _ProfilePageState extends State<ProfilePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          MainWrapper.loggedInUser.displayName,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                MainWrapper.loggedInUser.displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            if (MainWrapper.loggedInUser.hostCredibility?.trusted ==
+                                true) ...[
+                              const SizedBox(width: 8),
+                              _buildVerifiedRibbon(),
+                            ],
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -187,6 +216,8 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildGoerPreferencesContent(),
+        const SizedBox(height: 20),
         _buildEventSection(
           icon: Icons.storefront,
           iconColor: const Color.fromARGB(255, 238, 187, 34),
@@ -203,6 +234,76 @@ class _ProfilePageState extends State<ProfilePage> {
           events: _upcomingJoinedEvents,
         ),
       ],
+    );
+  }
+
+  Widget _buildGoerPreferencesContent() {
+    final categories = MainWrapper.loggedInUser.goerPreferences?.categories ?? const [];
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1B1F),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.interests_outlined, color: Color(0xFF22D3EE)),
+              SizedBox(width: 8),
+              Text(
+                'Goer preferences',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (categories.isEmpty)
+            Text(
+              'No preferred categories selected yet.',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: categories
+                  .map(
+                    (category) => _buildPreferenceChip(
+                      category,
+                      const Color(0xFFC084FC),
+                    ),
+                  )
+                  .toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreferenceChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
     );
   }
 
@@ -545,6 +646,28 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildAvatar() {
+    final avatarUrl = MainWrapper.loggedInUser.avatarUrl?.trim();
+    if (avatarUrl == null || avatarUrl.isEmpty) {
+      return _buildAvatarFallback();
+    }
+
+    return Container(
+      width: 64,
+      height: 64,
+      decoration: const BoxDecoration(shape: BoxShape.circle),
+      child: ClipOval(
+        child: Image.network(
+          avatarUrl,
+          width: 64,
+          height: 64,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _buildAvatarFallback(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatarFallback() {
     return Container(
       width: 64,
       height: 64,
@@ -561,6 +684,34 @@ class _ProfilePageState extends State<ProfilePage> {
             fontWeight: FontWeight.bold,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildVerifiedRibbon() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF22D3EE).withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF22D3EE).withValues(alpha: 0.4),
+        ),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.verified, size: 14, color: Color(0xFF22D3EE)),
+          SizedBox(width: 4),
+          Text(
+            'Verified',
+            style: TextStyle(
+              color: Color(0xFF22D3EE),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

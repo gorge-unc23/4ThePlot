@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fourtheplot/models/comment.dart';
 import 'package:fourtheplot/models/event.dart';
 import 'package:fourtheplot/models/user.dart';
+import 'package:fourtheplot/services/photo_url_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
@@ -66,6 +67,58 @@ class ApiToken {
   }
 }
 
+User _userFromApiJson(Map<String, dynamic> json) {
+  Map<String, dynamic>? normalizeBusinessProfile(dynamic value) {
+    if (value is! Map<String, dynamic>) return null;
+    return {
+      ...value,
+      'websiteUrl': value['websiteUrl'] ?? value['website_url'],
+      'logoUrl': value['logoUrl'] ?? value['logo_url'],
+      'isPublished': value['isPublished'] ?? value['is_published'] ?? false,
+    };
+  }
+
+  Map<String, dynamic>? normalizeHostCredibility(dynamic value) {
+    if (value is! Map<String, dynamic>) return null;
+    return {
+      ...value,
+      'reviewCount': value['reviewCount'] ?? value['review_count'],
+    };
+  }
+
+  Map<String, dynamic>? normalizeGoerPreferences(dynamic value) {
+    if (value is! Map<String, dynamic>) return null;
+    return {
+      ...value,
+      'updatedAt': value['updatedAt'] ??
+          value['updated_at'] ??
+          DateTime.now().toIso8601String(),
+    };
+  }
+
+  return User.fromJson({
+    ...json,
+    'displayName': json['displayName'] ??
+        json['display_name'] ??
+        json['username'] ??
+        '',
+    'avatarUrl': json['avatarUrl'] ?? json['avatar_url'],
+    'goerPreferences': normalizeGoerPreferences(
+      json['goerPreferences'] ?? json['goer_preferences'],
+    ),
+    'businessProfile': normalizeBusinessProfile(
+      json['businessProfile'] ?? json['business_profile'],
+    ),
+    'hostCredibility': normalizeHostCredibility(
+      json['hostCredibility'] ?? json['host_credibility'],
+    ),
+    'createdAt':
+        json['createdAt'] ?? json['created_at'] ?? DateTime.now().toIso8601String(),
+    'updatedAt':
+        json['updatedAt'] ?? json['updated_at'] ?? DateTime.now().toIso8601String(),
+  });
+}
+
 class DatabaseHelper {
   static const _accessTokenKey = 'auth.accessToken';
   static const _tokenTypeKey = 'auth.tokenType';
@@ -122,13 +175,13 @@ class DatabaseHelper {
     if (savedServerIp != null && savedServerIp.isNotEmpty) {
       serverIp = _normalizeServerIp(savedServerIp);
     }
-    Event.currentServerIp = serverIp;
+    PhotoUrlService.currentServerIp = serverIp;
   }
 
   Future<void> saveServerIp(String value) async {
     final normalizedServerIp = _normalizeServerIp("$value:8000");
     serverIp = normalizedServerIp;
-    Event.currentServerIp = normalizedServerIp;
+    PhotoUrlService.currentServerIp = normalizedServerIp;
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_serverIpKey, normalizedServerIp);
@@ -417,15 +470,28 @@ class DatabaseHelper {
     if (!result.success || result.data is! Map<String, dynamic>) {
       return result;
     }
-    return result.copyWith(data: User.fromJson(result.data as Map<String, dynamic>));
+    return result.copyWith(data: _userFromApiJson(result.data as Map<String, dynamic>));
   }
 
   Future<ApiResult> createUser(Map<String, dynamic> payload) async {
-    return _request('POST', 'user/', body: payload);
+    return _request('POST', 'user/', body: payload, authenticated: false);
   }
 
   Future<ApiResult> updateUser(int userId, Map<String, dynamic> payload) async {
     return _request('PUT', 'user/$userId', body: payload);
+  }
+
+  Future<ApiResult> getNonAdminUsers() async {
+    final result = await _request('GET', 'user/non-admins');
+    if (!result.success) {
+      return result;
+    }
+
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(_userFromApiJson)
+        .toList();
+    return result.copyWith(data: list);
   }
 
   Future<ApiResult> getNotTrustedUsers() async {
@@ -448,6 +514,17 @@ class DatabaseHelper {
         'rating': credibility?.rating,
         'review_count': credibility?.reviewCount,
         'trusted': true,
+      },
+    });
+  }
+
+  Future<ApiResult> markUserAsUntrusted(User user) async {
+    final credibility = user.hostCredibility;
+    return updateUser(user.id, {
+      'host_credibility': {
+        'rating': credibility?.rating,
+        'review_count': credibility?.reviewCount,
+        'trusted': false,
       },
     });
   }
@@ -841,7 +918,7 @@ class DatabaseHelper {
     return _request('POST', 'events/', body: payload);
   }
 
-  Future<ApiResult> uploadCoverImage(XFile image) async {
+  Future<ApiResult> uploadImage(XFile image) async {
     final bytes = await image.readAsBytes();
     final file = http.MultipartFile.fromBytes(
       'photo',
@@ -849,7 +926,12 @@ class DatabaseHelper {
       filename: image.name,
       contentType: _imageContentType(image.name),
     );
-    final result = await _multipartRequest('POST', 'events/photos', files: [file]);
+    final result = await _multipartRequest(
+      'POST',
+      'events/photos',
+      files: [file],
+      authenticated: false,
+    );
     if (!result.success || result.data is! Map<String, dynamic>) {
       return result;
     }
@@ -861,6 +943,10 @@ class DatabaseHelper {
     }
 
     return result.copyWith(data: coverImageUrl);
+  }
+
+  Future<ApiResult> uploadCoverImage(XFile image) {
+    return uploadImage(image);
   }
 
   MediaType _imageContentType(String filename) {

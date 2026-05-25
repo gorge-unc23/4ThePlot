@@ -1,6 +1,7 @@
 import 'package:fourtheplot/models/business_profile_summary.dart';
 import 'package:fourtheplot/models/goer_preferences.dart';
 import 'package:fourtheplot/models/host_credibility_summary.dart';
+import 'package:fourtheplot/services/photo_url_service.dart';
 
 enum UserRole {
     goer,
@@ -127,7 +128,9 @@ class User {
             displayName: (json['displayName'] as String?) ?? '',
             email: (json['email'] as String?) ?? '',
             phone: json['phone'] as String?,
-            avatarUrl: json['avatarUrl'] as String?,
+            avatarUrl: PhotoUrlService.normalizePhotoUrl(
+                    json['avatarUrl'] as String?,
+            ),
             role: userRoleFromString(json['role'] as String),
             status: userStatusFromString((json['status'] as String?) ?? 'active'),
             goerPreferences: json['goerPreferences'] != null

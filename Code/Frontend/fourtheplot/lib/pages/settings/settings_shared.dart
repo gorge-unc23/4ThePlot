@@ -14,10 +14,10 @@ class SettingsShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0C1021),
-        foregroundColor: Colors.white,
         title: Text(title),
       ),
       body: SafeArea(
@@ -26,14 +26,17 @@ class SettingsShell extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
                 fontSize: 28,
               ),
             ),
             const SizedBox(height: 4),
-            Text(subtitle, style: const TextStyle(color: Colors.white54)),
+            Text(
+              subtitle,
+              style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+            ),
             const SizedBox(height: 18),
             child,
           ],
@@ -55,14 +58,19 @@ class SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 10),
       padding: padding,
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1B1F),
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        border: Border.all(
+          color: colorScheme.onSurface.withValues(alpha: isDark ? 0.05 : 0.12),
+        ),
       ),
       child: child,
     );
@@ -70,11 +78,15 @@ class SettingsCard extends StatelessWidget {
 }
 
 Widget settingsDivider() {
-  return Divider(
-    height: 1,
-    color: Colors.white.withValues(alpha: 0.1),
-    indent: 16,
-    endIndent: 16,
+  return Builder(
+    builder: (context) {
+      return Divider(
+        height: 1,
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+        indent: 16,
+        endIndent: 16,
+      );
+    },
   );
 }
 
