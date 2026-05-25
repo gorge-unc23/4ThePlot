@@ -85,6 +85,12 @@ class HostVerificationDocumentCreate(CamelModel):
     status: str = 'submitted'
 
 
+class HostVerificationDocumentUserCreate(CamelModel):
+    document_type: str
+    document_url: str
+    status: str = 'submitted'
+
+
 class HostVerificationDocumentShow(CamelModel):
     id: int
     request_id: int

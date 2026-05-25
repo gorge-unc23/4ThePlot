@@ -8,6 +8,7 @@ import 'package:fourtheplot/models/comment.dart';
 import 'package:fourtheplot/models/event.dart';
 import 'package:fourtheplot/models/registration.dart';
 import 'package:fourtheplot/models/user.dart';
+import 'package:fourtheplot/pages/business_profile/business_profile_page.dart';
 import 'package:fourtheplot/pages/edit_event/edit_event_page.dart';
 import 'package:fourtheplot/pages/join_event/join_event_page.dart';
 import 'package:fourtheplot/pages/main_wrapper.dart';
@@ -655,13 +656,60 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
               color: Colors.white.withValues(alpha: 0.7),
             ),
             const SizedBox(width: 6),
-            Text(
-              'Hosted by ${event.hostName ?? 'Community'}',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+            Expanded(
+              child: _buildHostLink(event),
             ),
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildHostLink(Event event) {
+    final hostId = int.tryParse(event.hostId);
+    final hostName = event.hostName ?? 'Community';
+    final style = TextStyle(
+      color: hostId == null
+          ? Colors.white.withValues(alpha: 0.7)
+          : const Color(0xFF6EA8FF),
+      decoration: hostId == null ? TextDecoration.none : TextDecoration.underline,
+      decorationColor: const Color(0xFF6EA8FF).withValues(alpha: 0.7),
+    );
+
+    if (hostId == null) {
+      return Text(
+        'Hosted by $hostName',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      );
+    }
+
+    return InkWell(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => BusinessProfilePage(
+              hostId: hostId,
+              currentEventId: event.id,
+              initialHostName: hostName,
+              onEventTap: (context, hostedEvent) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => EventDetailsPage(event: hostedEvent),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+      child: Text(
+        'Hosted by $hostName',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      ),
     );
   }
 

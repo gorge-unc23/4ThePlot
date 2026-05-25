@@ -18,6 +18,7 @@ class _LoginPageState extends State<LoginPage> {
 
   String? _serverError;
   bool _obscurePassword = true;
+  bool _isLoggingIn = false;
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +69,7 @@ class _LoginPageState extends State<LoginPage> {
                           children: [
                             TextFormField(
                               controller: _emailController,
+                              enabled: !_isLoggingIn,
                               style: const TextStyle(color: Colors.white),
                               decoration: InputDecoration(
                                 hintText: 'Email address',
@@ -115,6 +117,7 @@ class _LoginPageState extends State<LoginPage> {
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: _passwordController,
+                              enabled: !_isLoggingIn,
                               obscureText: _obscurePassword,
                               style: const TextStyle(color: Colors.white),
                               decoration: InputDecoration(
@@ -128,7 +131,9 @@ class _LoginPageState extends State<LoginPage> {
                                   color: Colors.white.withValues(alpha: 0.7),
                                 ),
                                 suffixIcon: IconButton(
-                                  onPressed: () {
+                                  onPressed: _isLoggingIn
+                                      ? null
+                                      : () {
                                     setState(() {
                                       _obscurePassword = !_obscurePassword;
                                     });
@@ -191,14 +196,21 @@ class _LoginPageState extends State<LoginPage> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () async {
+                          onPressed: _isLoggingIn
+                              ? null
+                              : () async {
                             setState(() {
                               _serverError = "";
                             });
 
                             if (_loginFormKey.currentState!.validate()) { // TODO: Remove true after tests
+                              setState(() => _isLoggingIn = true);
                               ApiResult apiResult = await DatabaseHelper.instance.login(_emailController.text, _passwordController.text); // TODO: Reapply after tests
                               // ApiResult apiResult = await DatabaseHelper.instance.login("admin@admin.com", "12345");
+                              if (!mounted) {
+                                return;
+                              }
+                              setState(() => _isLoggingIn = false);
 
                               if (!apiResult.success) {
                                 setState(() {
@@ -224,7 +236,18 @@ class _LoginPageState extends State<LoginPage> {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          child: const Text('Login'),
+                          child: _isLoggingIn
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : const Text('Login'),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -236,7 +259,9 @@ class _LoginPageState extends State<LoginPage> {
                             style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
                           ),
                           TextButton(
-                            onPressed: () {
+                            onPressed: _isLoggingIn
+                                ? null
+                                : () {
                               Navigator.of(context).pushReplacement(
                                 MaterialPageRoute(builder: (context) => SignupPage()),
                               );

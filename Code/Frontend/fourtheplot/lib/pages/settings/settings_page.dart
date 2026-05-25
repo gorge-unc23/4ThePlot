@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/pages/landing/landing_page.dart';
+import 'package:fourtheplot/pages/settings/settings_sub_pages.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -12,6 +13,8 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -21,19 +24,22 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 6),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text(
                     'Settings',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: colorScheme.onSurface,
                       fontWeight: FontWeight.bold,
                       fontSize: 32,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     'Tweak your experience',
-                    style: TextStyle(fontSize: 14, color: Colors.white54),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
                   ),
                 ],
               ),
@@ -41,50 +47,52 @@ class _SettingsPageState extends State<SettingsPage> {
               Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  border: Border.all(
+                    color: colorScheme.onSurface.withValues(alpha: 0.1),
+                  ),
                 ),
                 child: Column(
                   children: [
                     _buildSettingTile(
                       icon: Icons.person_outline,
-                      title: 'Account',
-                      subtitle: 'Profile, password, security',
+                      title: 'Profile',
+                      subtitle: 'Name, email, phone, avatar',
+                      page: const SettingsProfilePage(),
                     ),
                     _buildDivider(),
                     _buildSettingTile(
-                      icon: Icons.notifications_none,
-                      title: 'Notifications',
-                      subtitle: 'Event alerts and reminders',
+                      icon: Icons.verified_user_outlined,
+                      title: 'Verification',
+                      subtitle: 'Trusted status and documents',
+                      page: const SettingsVerificationPage(),
                     ),
+                    // _buildDivider(),
+                    // _buildSettingTile(
+                    //   icon: Icons.notifications_none,
+                    //   title: 'Notifications',
+                    //   subtitle: 'Event alerts and reminders',
+                    //   page: const SettingsNotificationsPage(),
+                    // ),
                     _buildDivider(),
                     _buildSettingTile(
                       icon: Icons.lock_outline,
                       title: 'Privacy & Safety',
-                      subtitle: 'Visibility and safety controls',
+                      subtitle: 'Account status and deletion',
+                      page: const SettingsPrivacySafetyPage(),
                     ),
                     _buildDivider(),
                     _buildSettingTile(
-                      icon: Icons.tune,
-                      title: 'Event Preferences',
-                      subtitle: 'Categories and filters',
-                    ),
-                    _buildDivider(),
-                    _buildSettingTile(
-                      icon: Icons.location_on_outlined,
-                      title: 'Location & Map',
-                      subtitle: 'City defaults and map settings',
-                    ),
-                    _buildDivider(),
-                    _buildSettingTile(
-                      icon: Icons.credit_card,
-                      title: 'Tickets & Payments',
-                      subtitle: 'Payment methods and tickets',
+                      icon: Icons.palette_outlined,
+                      title: 'Appearance', //& Language
+                      subtitle: 'Theme preferences', //and language
+                      page: const SettingsAppearanceLanguagePage(),
                     ),
                     _buildDivider(),
                     _buildSettingTile(
                       icon: Icons.help_outline,
                       title: 'Support & Feedback',
                       subtitle: 'Help center and contact',
+                      page: const SettingsSupportFeedbackPage(),
                     ),
                   ],
                 ),
@@ -118,19 +126,31 @@ class _SettingsPageState extends State<SettingsPage> {
     required IconData icon,
     required String title,
     required String subtitle,
+    required Widget page,
   }) {
     return ListTile(
       // tileColor: const Color(0xFF1A1B1F),
       splashColor: const Color.fromARGB(6, 255, 255, 255),
-      leading: Icon(icon, color: Colors.white70),
+      leading: Icon(icon, color: Theme.of(context).listTileTheme.iconColor),
       title: Text(
         title,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurface,
+          fontWeight: FontWeight.w600,
+        ),
       ),
-      subtitle: Text(subtitle, style: const TextStyle(color: Colors.white54)),
-      trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.58),
+        ),
+      ),
+      trailing: Icon(
+        Icons.chevron_right,
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
+      ),
       onTap: () {
-        
+        Navigator.of(context).push(MaterialPageRoute(builder: (context) => page));
       },
     );
   }
@@ -138,7 +158,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildDivider() {
     return Divider(
       height: 1,
-      color: Colors.white.withValues(alpha: 0.1),
+      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
       indent: 16,
       endIndent: 16,
     );

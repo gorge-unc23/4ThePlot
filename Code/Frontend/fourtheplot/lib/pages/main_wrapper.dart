@@ -58,27 +58,36 @@ class _MainWrapperState extends State<MainWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final navBackground = isDark ? Colors.black : Colors.white;
+    final navBehind = isDark ? const Color(0xFF0F1012) : const Color(0xFFF7F8FC);
+    final shadowColor = isDark ? Colors.black : Colors.black.withValues(alpha: 0.12);
+    final borderColor = theme.colorScheme.onSurface.withValues(
+      alpha: isDark ? 0.1 : 0.08,
+    );
+
     return KeyedSubtree(
       key: ValueKey(_refreshVersion),
       child: PersistentTabView(
         context,
         screens: _buildScreens(),
         items: _navBarsItems(),
-        backgroundColor: Colors.black,
+        backgroundColor: navBackground,
         decoration: NavBarDecoration(
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(30.0),
             topRight: Radius.circular(30.0),
           ),
-          colorBehindNavBar: const Color(0xFF0F1012),
+          colorBehindNavBar: navBehind,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.18),
+              color: shadowColor,
               blurRadius: 14,
               offset: Offset(0, -4),
             ),
             BoxShadow(
-              color: Colors.white.withValues(alpha: 0.1),
+              color: borderColor,
               blurRadius: 0,
               spreadRadius: 1,
             ),

@@ -8,6 +8,7 @@ from models.user import User
 import authentication.token as token
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordRequestForm
+from services.audit import AuditLogger, get_audit_logger
 
 Hash = CryptContext(schemes=['bcrypt_sha256'], deprecated='auto')
 
@@ -17,7 +18,7 @@ router = APIRouter(
 )
 
 @router.post('/', response_model=LoginResponse)
-def login(request: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(request: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db), audit: AuditLogger = Depends(get_audit_logger)):
     user = (
         db.query(User)
         .options(
@@ -34,4 +35,14 @@ def login(request: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Incorrect password')
     
     access_token =token.create_access_token(data={"sub": user.email})
+    audit.log(
+        'login',
+        'Authentication',
+        user.id,
+        new_values={
+            'user_id': user.id,
+            'email': user.email,
+            'role': user.role,
+        },
+    )
     return LoginResponse(access_token=access_token, token_type="bearer", user=user)

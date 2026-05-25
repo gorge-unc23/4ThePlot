@@ -1,9 +1,12 @@
 from datetime import date, datetime, time, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from pathlib import Path
+from uuid import uuid4
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from database import get_db
 from authentication.oauth2 import get_current_admin_user
+from models.audit import AuditLog
 from models.admin import (
     AdminAuditLog,
     DisputeCase,
@@ -22,7 +25,6 @@ from models.registration import Registration
 from models.recurrence import RecurrenceRule
 from models.user import User
 from schemas.admin import (
-    AdminAuditLogShow,
     ChatLogsResponse,
     DailyMetrics,
     DailyMetricsResponse,
@@ -41,13 +43,18 @@ from schemas.admin import (
     SafetyReportShow,
     SafetyReportStatusUpdate,
 )
+from schemas.audit import AuditLogListResponse
 from schemas.user import UserShow
+from services.audit import AuditLogger, get_audit_logger, serialize_model
 
 
 router = APIRouter(
     prefix='/admin',
     tags=['Admin']
 )
+
+DOCUMENTS_DIR = Path('documents')
+ALLOWED_DOCUMENT_EXTENSIONS = {'.pdf'}
 
 VALID_MODERATION_ACTIONS = {
     'warn_user',
@@ -135,6 +142,10 @@ def write_audit_log(
     ))
 
 
+def build_document_url(request: Request, filename: str) -> str:
+    return str(request.base_url).rstrip('/') + f'/documents/{filename}'
+
+
 def date_range_bounds(start_date: date | None, end_date: date | None):
     end = end_date or date.today()
     start = start_date or (end - timedelta(days=30))
@@ -179,6 +190,7 @@ def apply_moderation_action(
     request: ModerationActionCreate,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user),
+    audit: AuditLogger = Depends(get_audit_logger),
 ):
     if request.action not in VALID_MODERATION_ACTIONS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Unsupported moderation action')
@@ -186,6 +198,8 @@ def apply_moderation_action(
     report = db.query(SafetyReport).filter(SafetyReport.id == report_id).first()
     if not report:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Report with id:{report_id} does not exist')
+    old_report_values = serialize_model(report)
+    target_audit = None
 
     if request.action == 'suspend_user':
         if not report.reported_user_id:
@@ -193,6 +207,7 @@ def apply_moderation_action(
         user = db.query(User).filter(User.id == report.reported_user_id).first()
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Reported user does not exist')
+        target_audit = ('update', 'User', user.id, serialize_model(user), user)
         user.status = 'suspended'
         user.is_active = False
     elif request.action == 'deactivate_event':
@@ -201,6 +216,7 @@ def apply_moderation_action(
         event = db.query(Event).filter(Event.id == report.reported_event_id).first()
         if not event:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Reported event does not exist')
+        target_audit = ('update', 'Event', event.id, serialize_model(event), event)
         event.status = 'inactive'
     elif request.action == 'delete_comment':
         if not report.reported_comment_id:
@@ -208,6 +224,7 @@ def apply_moderation_action(
         comment = db.query(Comment).filter(Comment.id == report.reported_comment_id).first()
         if not comment:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Reported comment does not exist')
+        target_audit = ('delete', 'Comment', comment.id, serialize_model(comment), None)
         db.delete(comment)
 
     moderation_action = ModerationAction(
@@ -222,6 +239,18 @@ def apply_moderation_action(
     write_audit_log(db, current_admin, request.action, request.reason, 'safety_report', report.id)
     db.commit()
     db.refresh(moderation_action)
+    db.refresh(report)
+    audit.log('create', 'ModerationAction', moderation_action.id, new_values=serialize_model(moderation_action))
+    audit.log('update', 'SafetyReport', report.id, old_values=old_report_values, new_values=serialize_model(report))
+    if target_audit:
+        target_action, target_model, target_id, target_old_values, target_instance = target_audit
+        audit.log(
+            target_action,
+            target_model,
+            target_id,
+            old_values=target_old_values,
+            new_values=serialize_model(target_instance) if target_instance is not None else None,
+        )
     return moderation_action
 
 
@@ -231,16 +260,20 @@ def update_report_status(
     request: SafetyReportStatusUpdate,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user),
+    audit: AuditLogger = Depends(get_audit_logger),
 ):
     report = db.query(SafetyReport).filter(SafetyReport.id == report_id).first()
     if not report:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Report with id:{report_id} does not exist')
+    old_values = serialize_model(report)
 
     report.status = request.status
     if request.status == 'resolved':
         report.resolved_at = datetime.utcnow()
     write_audit_log(db, current_admin, 'update_report_status', request.reason, 'safety_report', report.id)
     db.commit()
+    db.refresh(report)
+    audit.log('update', 'SafetyReport', report.id, old_values=old_values, new_values=serialize_model(report))
     return db.query(SafetyReport).options(*report_load_options()).filter(SafetyReport.id == report_id).first()
 
 
@@ -269,12 +302,36 @@ def get_host_verification(request_id: int, db: Session = Depends(get_db), curren
     return verification
 
 
+@router.post('/host-verifications/documents/upload', status_code=status.HTTP_201_CREATED)
+async def upload_host_verification_document(
+    request: Request,
+    document: UploadFile = File(...),
+    current_admin: UserShow = Depends(get_current_admin_user),
+):
+    extension = Path(document.filename or '').suffix.lower()
+    if extension not in ALLOWED_DOCUMENT_EXTENSIONS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Only pdf documents are allowed')
+
+    if document.content_type and document.content_type != 'application/pdf':
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Uploaded file must be a PDF')
+
+    DOCUMENTS_DIR.mkdir(parents=True, exist_ok=True)
+    filename = f'{uuid4().hex}{extension}'
+    file_path = DOCUMENTS_DIR / filename
+
+    contents = await document.read()
+    file_path.write_bytes(contents)
+
+    return {'documentUrl': build_document_url(request, filename)}
+
+
 @router.post('/host-verifications/{request_id}/documents', status_code=status.HTTP_201_CREATED, response_model=HostVerificationDocumentShow)
 def add_host_verification_document(
     request_id: int,
     request: HostVerificationDocumentCreate,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user),
+    audit: AuditLogger = Depends(get_audit_logger),
 ):
     verification = db.query(HostVerificationRequest).filter(HostVerificationRequest.id == request_id).first()
     if not verification:
@@ -290,6 +347,7 @@ def add_host_verification_document(
     write_audit_log(db, current_admin, 'add_host_verification_document', request.reason, 'host_verification_request', request_id)
     db.commit()
     db.refresh(document)
+    audit.log('create', 'HostVerificationDocument', document.id, new_values=serialize_model(document))
     return document
 
 
@@ -299,6 +357,7 @@ def review_host_verification(
     request: HostVerificationReview,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user),
+    audit: AuditLogger = Depends(get_audit_logger),
 ):
     if request.status not in HOST_VERIFICATION_STATUSES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Unsupported host verification status')
@@ -306,11 +365,15 @@ def review_host_verification(
     verification = db.query(HostVerificationRequest).filter(HostVerificationRequest.id == request_id).first()
     if not verification:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Host verification with id:{request_id} does not exist')
+    old_verification_values = serialize_model(verification)
 
     credibility = db.query(HostCredibility).filter(HostCredibility.user_id == verification.host_user_id).first()
     if credibility is None:
         credibility = HostCredibility(user_id=verification.host_user_id, review_count=0)
         db.add(credibility)
+        old_credibility_values = None
+    else:
+        old_credibility_values = serialize_model(credibility)
 
     verification.status = request.status
     verification.reviewed_at = datetime.utcnow()
@@ -323,6 +386,16 @@ def review_host_verification(
 
     write_audit_log(db, current_admin, 'review_host_verification', request.reason, 'host_verification_request', request_id)
     db.commit()
+    db.refresh(verification)
+    db.refresh(credibility)
+    audit.log('update', 'HostVerificationRequest', verification.id, old_values=old_verification_values, new_values=serialize_model(verification))
+    audit.log(
+        'create' if old_credibility_values is None else 'update',
+        'HostCredibility',
+        credibility.id,
+        old_values=old_credibility_values,
+        new_values=serialize_model(credibility),
+    )
     return (
         db.query(HostVerificationRequest)
         .options(*host_verification_load_options())
@@ -336,6 +409,7 @@ def create_notification(
     request: GlobalNotificationCreate,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user),
+    audit: AuditLogger = Depends(get_audit_logger),
 ):
     notification = GlobalNotification(
         title=request.title,
@@ -349,6 +423,7 @@ def create_notification(
     write_audit_log(db, current_admin, 'create_global_notification', request.reason, 'global_notification')
     db.commit()
     db.refresh(notification)
+    audit.log('create', 'GlobalNotification', notification.id, new_values=serialize_model(notification))
     return notification
 
 
@@ -363,10 +438,12 @@ def update_notification(
     request: GlobalNotificationUpdate,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user),
+    audit: AuditLogger = Depends(get_audit_logger),
 ):
     notification = db.query(GlobalNotification).filter(GlobalNotification.id == notification_id).first()
     if not notification:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Notification with id:{notification_id} does not exist')
+    old_values = serialize_model(notification)
 
     update_data = request.model_dump(exclude_unset=True)
     reason = update_data.pop('reason')
@@ -380,6 +457,7 @@ def update_notification(
     write_audit_log(db, current_admin, 'update_global_notification', reason, 'global_notification', notification.id)
     db.commit()
     db.refresh(notification)
+    audit.log('update', 'GlobalNotification', notification.id, old_values=old_values, new_values=serialize_model(notification))
     return notification
 
 
@@ -463,6 +541,7 @@ def resolve_dispute(
     request: DisputeDecisionUpdate,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user),
+    audit: AuditLogger = Depends(get_audit_logger),
 ):
     if request.status not in DISPUTE_STATUSES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Unsupported dispute status')
@@ -470,6 +549,7 @@ def resolve_dispute(
     dispute = db.query(DisputeCase).filter(DisputeCase.id == dispute_id).first()
     if not dispute:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Dispute with id:{dispute_id} does not exist')
+    old_values = serialize_model(dispute)
 
     dispute.decision = request.decision
     dispute.decision_reason = request.reason
@@ -478,6 +558,8 @@ def resolve_dispute(
         dispute.resolved_at = datetime.utcnow()
     write_audit_log(db, current_admin, 'resolve_dispute', request.reason, 'dispute_case', dispute.id)
     db.commit()
+    db.refresh(dispute)
+    audit.log('update', 'DisputeCase', dispute.id, old_values=old_values, new_values=serialize_model(dispute))
     return db.query(DisputeCase).options(*dispute_load_options()).filter(DisputeCase.id == dispute_id).first()
 
 
@@ -498,6 +580,44 @@ def get_dispute_chat_logs(dispute_id: int, db: Session = Depends(get_db), curren
     )
 
 
-@router.get('/audit-logs', response_model=list[AdminAuditLogShow])
-def get_audit_logs(db: Session = Depends(get_db), current_admin: UserShow = Depends(get_current_admin_user)):
-    return db.query(AdminAuditLog).order_by(AdminAuditLog.created_at.desc()).all()
+@router.get('/audit-logs', response_model=AuditLogListResponse)
+def get_audit_logs(
+    user_id: int | None = Query(default=None, alias='userId'),
+    action: str | None = None,
+    model_name: str | None = Query(default=None, alias='model'),
+    start_date: datetime | None = Query(default=None, alias='startDate'),
+    end_date: datetime | None = Query(default=None, alias='endDate'),
+    sort: str = 'desc',
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=25, alias='pageSize', ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_admin: UserShow = Depends(get_current_admin_user),
+):
+    query = db.query(AuditLog)
+
+    if user_id is not None:
+        query = query.filter(AuditLog.actor_user_id == user_id)
+    if action:
+        query = query.filter(AuditLog.action == action)
+    if model_name:
+        query = query.filter(AuditLog.model_name == model_name)
+    if start_date:
+        query = query.filter(AuditLog.created_at >= start_date)
+    if end_date:
+        query = query.filter(AuditLog.created_at <= end_date)
+
+    total = query.count()
+    order_column = AuditLog.created_at.asc() if sort == 'asc' else AuditLog.created_at.desc()
+    items = (
+        query.order_by(order_column)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    return AuditLogListResponse(
+        total=total,
+        page=page,
+        page_size=page_size,
+        items=items,
+    )

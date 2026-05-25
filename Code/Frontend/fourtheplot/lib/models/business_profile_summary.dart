@@ -1,3 +1,5 @@
+import 'package:fourtheplot/services/photo_url_service.dart';
+
 class BusinessProfileSummary {
     final String name;
     final String? description;
@@ -18,7 +20,7 @@ class BusinessProfileSummary {
             name: (json['name'] as String?) ?? '',
             description: json['description'] as String?,
             websiteUrl: json['websiteUrl'] as String?,
-            logoUrl: json['logoUrl'] as String?,
+            logoUrl: PhotoUrlService.normalizePhotoUrl(json['logoUrl'] as String?),
             isPublished: (json['isPublished'] as bool?) ?? false,
         );
     }

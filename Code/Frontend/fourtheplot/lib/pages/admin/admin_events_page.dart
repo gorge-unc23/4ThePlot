@@ -114,31 +114,29 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: RefreshIndicator(
-            onRefresh: _loadEvents,
-            child: ListView(
-              children: [
-                const SizedBox(height: 6),
-                const Text(
-                  'Events',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
+      body: Padding(
+        padding: const EdgeInsets.all(10),
+        child: RefreshIndicator(
+          onRefresh: _loadEvents,
+          child: ListView(
+            children: [
+              const SizedBox(height: 6),
+              const Text(
+                'Events',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Inspect and moderate platform events',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
-                ),
-                const SizedBox(height: 20),
-                _buildContent(),
-              ],
-            ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Inspect and moderate platform events',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+              ),
+              const SizedBox(height: 20),
+              _buildContent(),
+            ],
           ),
         ),
       ),

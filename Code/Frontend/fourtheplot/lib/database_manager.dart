@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:fourtheplot/models/admin/admin_models.dart';
 import 'package:fourtheplot/models/registration.dart';
 import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fourtheplot/models/comment.dart';
 import 'package:fourtheplot/models/event.dart';
 import 'package:fourtheplot/models/user.dart';
+import 'package:fourtheplot/services/photo_url_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
@@ -65,6 +67,58 @@ class ApiToken {
   }
 }
 
+User _userFromApiJson(Map<String, dynamic> json) {
+  Map<String, dynamic>? normalizeBusinessProfile(dynamic value) {
+    if (value is! Map<String, dynamic>) return null;
+    return {
+      ...value,
+      'websiteUrl': value['websiteUrl'] ?? value['website_url'],
+      'logoUrl': value['logoUrl'] ?? value['logo_url'],
+      'isPublished': value['isPublished'] ?? value['is_published'] ?? false,
+    };
+  }
+
+  Map<String, dynamic>? normalizeHostCredibility(dynamic value) {
+    if (value is! Map<String, dynamic>) return null;
+    return {
+      ...value,
+      'reviewCount': value['reviewCount'] ?? value['review_count'],
+    };
+  }
+
+  Map<String, dynamic>? normalizeGoerPreferences(dynamic value) {
+    if (value is! Map<String, dynamic>) return null;
+    return {
+      ...value,
+      'updatedAt': value['updatedAt'] ??
+          value['updated_at'] ??
+          DateTime.now().toIso8601String(),
+    };
+  }
+
+  return User.fromJson({
+    ...json,
+    'displayName': json['displayName'] ??
+        json['display_name'] ??
+        json['username'] ??
+        '',
+    'avatarUrl': json['avatarUrl'] ?? json['avatar_url'],
+    'goerPreferences': normalizeGoerPreferences(
+      json['goerPreferences'] ?? json['goer_preferences'],
+    ),
+    'businessProfile': normalizeBusinessProfile(
+      json['businessProfile'] ?? json['business_profile'],
+    ),
+    'hostCredibility': normalizeHostCredibility(
+      json['hostCredibility'] ?? json['host_credibility'],
+    ),
+    'createdAt':
+        json['createdAt'] ?? json['created_at'] ?? DateTime.now().toIso8601String(),
+    'updatedAt':
+        json['updatedAt'] ?? json['updated_at'] ?? DateTime.now().toIso8601String(),
+  });
+}
+
 class DatabaseHelper {
   static const _accessTokenKey = 'auth.accessToken';
   static const _tokenTypeKey = 'auth.tokenType';
@@ -121,11 +175,13 @@ class DatabaseHelper {
     if (savedServerIp != null && savedServerIp.isNotEmpty) {
       serverIp = _normalizeServerIp(savedServerIp);
     }
+    PhotoUrlService.currentServerIp = serverIp;
   }
 
   Future<void> saveServerIp(String value) async {
-    final normalizedServerIp = _normalizeServerIp(value);
+    final normalizedServerIp = _normalizeServerIp("$value:8000");
     serverIp = normalizedServerIp;
+    PhotoUrlService.currentServerIp = normalizedServerIp;
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_serverIpKey, normalizedServerIp);
@@ -244,6 +300,14 @@ class DatabaseHelper {
       } else if (method == 'PUT') {
         response = await http
             .put(
+              uri,
+              headers: _headers(authenticated: authenticated),
+              body: jsonEncode(body ?? {}),
+            )
+            .timeout(_requestTimeout);
+      } else if (method == 'PATCH') {
+        response = await http
+            .patch(
               uri,
               headers: _headers(authenticated: authenticated),
               body: jsonEncode(body ?? {}),
@@ -406,15 +470,28 @@ class DatabaseHelper {
     if (!result.success || result.data is! Map<String, dynamic>) {
       return result;
     }
-    return result.copyWith(data: User.fromJson(result.data as Map<String, dynamic>));
+    return result.copyWith(data: _userFromApiJson(result.data as Map<String, dynamic>));
   }
 
   Future<ApiResult> createUser(Map<String, dynamic> payload) async {
-    return _request('POST', 'user/', body: payload);
+    return _request('POST', 'user/', body: payload, authenticated: false);
   }
 
   Future<ApiResult> updateUser(int userId, Map<String, dynamic> payload) async {
     return _request('PUT', 'user/$userId', body: payload);
+  }
+
+  Future<ApiResult> getNonAdminUsers() async {
+    final result = await _request('GET', 'user/non-admins');
+    if (!result.success) {
+      return result;
+    }
+
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(_userFromApiJson)
+        .toList();
+    return result.copyWith(data: list);
   }
 
   Future<ApiResult> getNotTrustedUsers() async {
@@ -441,8 +518,346 @@ class DatabaseHelper {
     });
   }
 
+  Future<ApiResult> markUserAsUntrusted(User user) async {
+    final credibility = user.hostCredibility;
+    return updateUser(user.id, {
+      'host_credibility': {
+        'rating': credibility?.rating,
+        'review_count': credibility?.reviewCount,
+        'trusted': false,
+      },
+    });
+  }
+
   Future<ApiResult> deleteUser(int userId) async {
     return _request('DELETE', 'user/$userId');
+  }
+
+  Future<ApiResult> getAdminReports({String? status, String? severity}) async {
+    final result = await _request(
+      'GET',
+      'admin/reports',
+      query: {'status': status, 'severity': severity},
+    );
+    if (!result.success) return result;
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AdminSafetyReport.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> getAdminReport(int reportId) async {
+    final result = await _request('GET', 'admin/reports/$reportId');
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminSafetyReport.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> applyAdminModerationAction(
+    int reportId, {
+    required String action,
+    required String reason,
+  }) async {
+    final result = await _request(
+      'POST',
+      'admin/reports/$reportId/moderation-actions',
+      body: {'action': action, 'reason': reason},
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminModerationAction.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> updateAdminReportStatus(
+    int reportId, {
+    required String status,
+    required String reason,
+  }) async {
+    final result = await _request(
+      'PATCH',
+      'admin/reports/$reportId/status',
+      body: {'status': status, 'reason': reason},
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminSafetyReport.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> getAdminHostVerifications({String? status}) async {
+    final result = await _request(
+      'GET',
+      'admin/host-verifications',
+      query: {'status': status},
+    );
+    if (!result.success) return result;
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AdminHostVerificationRequest.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> getAdminHostVerification(int requestId) async {
+    final result = await _request('GET', 'admin/host-verifications/$requestId');
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminHostVerificationRequest.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> addAdminHostVerificationDocument(
+    int requestId, {
+    required String documentType,
+    required String documentUrl,
+    required String status,
+    required String reason,
+  }) async {
+    final result = await _request(
+      'POST',
+      'admin/host-verifications/$requestId/documents',
+      body: {
+        'document_type': documentType,
+        'document_url': documentUrl,
+        'status': status,
+        'reason': reason,
+      },
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminHostVerificationDocument.fromJson(
+        result.data as Map<String, dynamic>,
+      ),
+    );
+  }
+
+  Future<ApiResult> reviewAdminHostVerification(
+    int requestId, {
+    required String status,
+    required String reason,
+  }) async {
+    final result = await _request(
+      'PATCH',
+      'admin/host-verifications/$requestId/review',
+      body: {'status': status, 'reason': reason},
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminHostVerificationRequest.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> uploadHostVerificationPdf({
+    required String path,
+    required String filename,
+  }) async {
+    final file = await http.MultipartFile.fromPath(
+      'document',
+      path,
+      filename: filename,
+      contentType: MediaType('application', 'pdf'),
+    );
+    final result = await _multipartRequest(
+      'POST',
+      'user/host-verification/documents/upload',
+      files: [file],
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) {
+      return result;
+    }
+    return result.copyWith(data: result.data as Map<String, dynamic>);
+  }
+
+  Future<ApiResult> getMyHostVerificationRequests() async {
+    final result = await _request('GET', 'user/host-verification');
+    if (!result.success) return result;
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AdminHostVerificationRequest.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> createMyHostVerificationRequest() async {
+    final result = await _request('POST', 'user/host-verification');
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminHostVerificationRequest.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> addMyHostVerificationDocument(
+    int requestId, {
+    required String documentType,
+    required String documentUrl,
+  }) async {
+    final result = await _request(
+      'POST',
+      'user/host-verification/$requestId/documents',
+      body: {
+        'document_type': documentType,
+        'document_url': documentUrl,
+        'status': 'submitted',
+      },
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminHostVerificationDocument.fromJson(
+        result.data as Map<String, dynamic>,
+      ),
+    );
+  }
+
+  Future<ApiResult> deleteMyHostVerificationRequest(int requestId) async {
+    return _request('DELETE', 'user/host-verification/$requestId');
+  }
+
+  Future<ApiResult> getAdminNotifications() async {
+    final result = await _request('GET', 'admin/notifications');
+    if (!result.success) return result;
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AdminGlobalNotification.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> createAdminNotification(Map<String, dynamic> payload) async {
+    final result = await _request('POST', 'admin/notifications', body: payload);
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminGlobalNotification.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> updateAdminNotification(
+    int notificationId,
+    Map<String, dynamic> payload,
+  ) async {
+    final result = await _request(
+      'PATCH',
+      'admin/notifications/$notificationId',
+      body: payload,
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminGlobalNotification.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> getAdminMetricsOverview({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final result = await _request(
+      'GET',
+      'admin/metrics/overview',
+      query: {
+        'startDate': _dateQuery(startDate),
+        'endDate': _dateQuery(endDate),
+      },
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminMetricsOverview.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> getAdminDailyMetrics({DateTime? startDate, DateTime? endDate}) async {
+    final result = await _request(
+      'GET',
+      'admin/metrics/daily',
+      query: {
+        'startDate': _dateQuery(startDate),
+        'endDate': _dateQuery(endDate),
+      },
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    final days = (result.data['days'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AdminDailyMetrics.fromJson)
+        .toList();
+    return result.copyWith(data: days);
+  }
+
+  Future<ApiResult> getAdminDisputes({String? status}) async {
+    final result = await _request(
+      'GET',
+      'admin/disputes',
+      query: {'status': status},
+    );
+    if (!result.success) return result;
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AdminDisputeCase.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> getAdminDispute(int disputeId) async {
+    final result = await _request('GET', 'admin/disputes/$disputeId');
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminDisputeCase.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> resolveAdminDispute(
+    int disputeId, {
+    required String decision,
+    required String reason,
+    required String status,
+  }) async {
+    final result = await _request(
+      'PATCH',
+      'admin/disputes/$disputeId/decision',
+      body: {'decision': decision, 'reason': reason, 'status': status},
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminDisputeCase.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> getAdminDisputeChatLogs(int disputeId) async {
+    final result = await _request('GET', 'admin/disputes/$disputeId/chat-logs');
+    if (!result.success || result.data is! Map<String, dynamic>) return result;
+    return result.copyWith(
+      data: AdminChatLogsResponse.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> getAdminAuditLogs({int page = 1, int pageSize = 20}) async {
+    final result = await _request(
+      'GET',
+      'admin/audit-logs',
+      query: {'page': page, 'pageSize': pageSize},
+    );
+    if (!result.success) return result;
+    if (result.data is Map<String, dynamic>) {
+      return result.copyWith(
+        data: AdminAuditLogPage.fromJson(result.data as Map<String, dynamic>),
+      );
+    }
+    final items = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AdminAuditLog.fromJson)
+        .toList();
+    return result.copyWith(
+      data: AdminAuditLogPage(
+        total: items.length,
+        page: page,
+        pageSize: pageSize,
+        items: items,
+      ),
+    );
+  }
+
+  String? _dateQuery(DateTime? value) {
+    return value?.toIso8601String().split('T').first;
   }
 
   Future<ApiResult> getAllEvents({bool useCache = true}) async {
@@ -503,7 +918,7 @@ class DatabaseHelper {
     return _request('POST', 'events/', body: payload);
   }
 
-  Future<ApiResult> uploadCoverImage(XFile image) async {
+  Future<ApiResult> uploadImage(XFile image) async {
     final bytes = await image.readAsBytes();
     final file = http.MultipartFile.fromBytes(
       'photo',
@@ -511,7 +926,12 @@ class DatabaseHelper {
       filename: image.name,
       contentType: _imageContentType(image.name),
     );
-    final result = await _multipartRequest('POST', 'events/photos', files: [file]);
+    final result = await _multipartRequest(
+      'POST',
+      'events/photos',
+      files: [file],
+      authenticated: false,
+    );
     if (!result.success || result.data is! Map<String, dynamic>) {
       return result;
     }
@@ -523,6 +943,10 @@ class DatabaseHelper {
     }
 
     return result.copyWith(data: coverImageUrl);
+  }
+
+  Future<ApiResult> uploadCoverImage(XFile image) {
+    return uploadImage(image);
   }
 
   MediaType _imageContentType(String filename) {
