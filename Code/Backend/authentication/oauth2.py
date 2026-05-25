@@ -8,14 +8,18 @@ from . import token
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='login')
 
-def get_current_user(data: str = Depends(oauth2_scheme)):
+def get_current_user(data: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
-    return token.verify_token(data,credentials_exception)
+
+    token_data = token.verify_token(data,credentials_exception)
+    user = db.query(User).filter(User.email == token_data.email).first()
+    if not user:
+        raise credentials_exception
+    return user
      
 
 def get_current_admin_user(data: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):

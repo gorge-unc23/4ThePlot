@@ -16,6 +16,7 @@ from models.tag import Tag
 from database import get_db
 from math import radians, sin, cos, sqrt, atan2
 from authentication.oauth2 import get_current_user
+from services.audit import AuditLogger, get_audit_logger, serialize_model
 
 
 router = APIRouter(
@@ -96,7 +97,7 @@ def trending_events(db: Session = Depends(get_db), current_user: UserShow = Depe
 
 #Upload an event photo
 @router.post('/photos', status_code=status.HTTP_201_CREATED)
-async def upload_event_photo(request: Request, photo: UploadFile = File(...), current_user: UserShow = Depends(get_current_user)):
+async def upload_event_photo(request: Request, photo: UploadFile = File(...)):
     extension = Path(photo.filename or '').suffix.lower()
     if extension not in ALLOWED_IMAGE_EXTENSIONS:
         raise HTTPException(
@@ -279,7 +280,7 @@ def show(event_id: int, response: Response, db: Session = Depends(get_db),curren
 
 #Create an Event
 @router.post('/', status_code=201,response_model=ShowEvent)
-def create_event(request: EventCreate, db: Session = Depends(get_db),current_user: UserShow = Depends(get_current_user)):
+def create_event(request: EventCreate, db: Session = Depends(get_db),current_user: UserShow = Depends(get_current_user), audit: AuditLogger = Depends(get_audit_logger)):
     start_at = request.start_at or request.event_date
     if start_at is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='startAt is required')
@@ -345,12 +346,13 @@ def create_event(request: EventCreate, db: Session = Depends(get_db),current_use
 
     db.commit()
     db.refresh(new_event)
+    audit.log('create', 'Event', new_event.id, new_values=serialize_model(new_event))
     return new_event
 
 
 #Update Event
 @router.put('/{event_id}', status_code=status.HTTP_202_ACCEPTED)
-def update_event(event_id: int, request: EventCreate, db: Session = Depends(get_db),current_user: UserShow = Depends(get_current_user)):
+def update_event(event_id: int, request: EventCreate, db: Session = Depends(get_db),current_user: UserShow = Depends(get_current_user), audit: AuditLogger = Depends(get_audit_logger)):
     event = (
         db.query(Event)
         .options(
@@ -365,6 +367,7 @@ def update_event(event_id: int, request: EventCreate, db: Session = Depends(get_
     )
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Event with id {event_id} does not exist.')
+    old_values = serialize_model(event)
 
     start_at = request.start_at or request.event_date
     if start_at is None:
@@ -422,14 +425,18 @@ def update_event(event_id: int, request: EventCreate, db: Session = Depends(get_
     event.tag_links = [get_or_create_tag(name, db) for name in request.tags]
 
     db.commit()
+    db.refresh(event)
+    audit.log('update', 'Event', event.id, old_values=old_values, new_values=serialize_model(event))
     return 'The event is updated.'
 
 #Delete Event
 @router.delete('/{event_id}', status_code=status.HTTP_204_NO_CONTENT)
-def delete_event(event_id: int, db: Session = Depends(get_db),current_user: UserShow = Depends(get_current_user)):
-    event = db.query(Event).filter(Event.id == event_id)
-    if not event.first():
+def delete_event(event_id: int, db: Session = Depends(get_db),current_user: UserShow = Depends(get_current_user), audit: AuditLogger = Depends(get_audit_logger)):
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Event with id {event_id} does not exist.')
-    event.delete(synchronize_session=False)
+    old_values = serialize_model(event)
+    db.delete(event)
     db.commit()
+    audit.log('delete', 'Event', event_id, old_values=old_values)
 

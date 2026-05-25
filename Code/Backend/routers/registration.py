@@ -9,6 +9,7 @@ from models.recurrence import RecurrenceRule
 from database import get_db
 from schemas.user import UserShow
 from authentication.oauth2 import get_current_user
+from services.audit import AuditLogger, get_audit_logger, serialize_model
 
 
 router = APIRouter(
@@ -29,7 +30,7 @@ def registration_load_options():
 
 #Create Registration
 @router.post('/', status_code=status.HTTP_201_CREATED,response_model=ShowRegistration)
-def create_registration(request : RegistrationCreate, db: Session = Depends(get_db),current_user: UserShow = Depends(get_current_user)):
+def create_registration(request : RegistrationCreate, db: Session = Depends(get_db),current_user: UserShow = Depends(get_current_user), audit: AuditLogger = Depends(get_audit_logger)):
     event = db.query(Event).filter(Event.id == request.event_id).first()
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Event with id:{request.event_id} does not exist')
@@ -39,7 +40,14 @@ def create_registration(request : RegistrationCreate, db: Session = Depends(get_
         capacity = EventCapacity(event_id=request.event_id, confirmed_attendees=0)
         db.add(capacity)
 
-    capacity.confirmed_attendees = (capacity.confirmed_attendees or 0) + 1
+    confirmed_attendees = capacity.confirmed_attendees or 0
+    if capacity.max_attendees is not None and confirmed_attendees >= capacity.max_attendees:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Event capacity is full',
+        )
+
+    capacity.confirmed_attendees = confirmed_attendees + 1
 
     new_registration = Registration(
         user_id       = request.user_id,
@@ -48,6 +56,7 @@ def create_registration(request : RegistrationCreate, db: Session = Depends(get_
     db.add(new_registration)
     db.commit()
     db.refresh(new_registration)
+    audit.log('create', 'Registration', new_registration.id, new_values=serialize_model(new_registration))
     return (
         db.query(Registration)
         .options(*registration_load_options())
@@ -84,10 +93,11 @@ def get_user_event_registration(user_id: int, event_id: int, db: Session = Depen
 
 
 @router.delete('/{registration_id}',status_code=status.HTTP_204_NO_CONTENT)
-def delete_event(registration_id:int, db: Session = Depends(get_db),current_user: UserShow = Depends(get_current_user)):
+def delete_event(registration_id:int, db: Session = Depends(get_db),current_user: UserShow = Depends(get_current_user), audit: AuditLogger = Depends(get_audit_logger)):
     registration = db.query(Registration).filter(Registration.id == registration_id).first()
     if not registration:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Registration with id:{registration_id} does not exist')
+    old_values = serialize_model(registration)
 
     capacity = db.query(EventCapacity).filter(EventCapacity.event_id == registration.event_id).first()
     if capacity:
@@ -95,3 +105,4 @@ def delete_event(registration_id:int, db: Session = Depends(get_db),current_user
 
     db.delete(registration)
     db.commit()
+    audit.log('delete', 'Registration', registration_id, old_values=old_values)
