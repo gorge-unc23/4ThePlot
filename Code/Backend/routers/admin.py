@@ -2,10 +2,10 @@ from datetime import date, datetime, time, timedelta
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from pathlib import Path
 from uuid import uuid4
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 from database import get_db
-from authentication.oauth2 import get_current_admin_user
+from authentication.oauth2 import get_current_admin_user, get_current_user
 from models.audit import AuditLog
 from models.admin import (
     AdminAuditLog,
@@ -429,6 +429,14 @@ def create_notification(
 
 @router.get('/notifications', response_model=list[GlobalNotificationShow])
 def get_notifications(db: Session = Depends(get_db), current_admin: UserShow = Depends(get_current_admin_user)):
+    return db.query(GlobalNotification).order_by(GlobalNotification.created_at.desc()).all()
+
+
+@router.get('/notifications/public', response_model=list[GlobalNotificationShow])
+def get_public_notifications(
+    db: Session = Depends(get_db),
+    current_user: UserShow = Depends(get_current_user),
+):
     return db.query(GlobalNotification).order_by(GlobalNotification.created_at.desc()).all()
 
 

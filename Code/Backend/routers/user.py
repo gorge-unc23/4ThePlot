@@ -10,10 +10,10 @@ from models.category import Category
 from models.goer_preferences import GoerPreferences
 from models.business_profile import BusinessProfile
 from models.host_credibility import HostCredibility
-from models.admin import HostVerificationDocument, HostVerificationRequest
+from models.admin import HostVerificationDocument, HostVerificationRequest, SafetyReport
 from database import get_db
 from passlib.context import CryptContext
-from schemas.admin import HostVerificationDocumentShow, HostVerificationDocumentUserCreate, HostVerificationRequestShow
+from schemas.admin import HostVerificationDocumentShow, HostVerificationDocumentUserCreate, HostVerificationRequestShow, SafetyReportCreate, SafetyReportShow
 from schemas.user import UserShow
 from authentication.oauth2 import get_current_user
 from services.audit import AuditLogger, get_audit_logger, serialize_model
@@ -54,6 +54,17 @@ def host_verification_load_options():
     )
 
 
+def safety_report_load_options():
+    return (
+        joinedload(SafetyReport.reporter).options(*user_load_options()),
+        joinedload(SafetyReport.reported_user).options(*user_load_options()),
+        joinedload(SafetyReport.reported_event),
+        joinedload(SafetyReport.reported_comment),
+        joinedload(SafetyReport.evidence),
+        joinedload(SafetyReport.moderation_actions),
+    )
+
+
 def build_document_url(request: Request, filename: str) -> str:
     return str(request.base_url).rstrip('/') + f'/documents/{filename}'
 
@@ -86,6 +97,60 @@ def get_non_admin_users(db: Session = Depends(get_db), current_user: UserShow = 
         .all()
     )
     return users
+
+
+@router.post('/reports', status_code=status.HTTP_201_CREATED, response_model=SafetyReportShow)
+def create_safety_report(
+    request: SafetyReportCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    audit: AuditLogger = Depends(get_audit_logger),
+):
+    if not any([request.reported_user_id, request.reported_event_id, request.reported_comment_id]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Report must target a user, event, or comment',
+        )
+
+    report = SafetyReport(
+        reporter_user_id=current_user.id,
+        reported_user_id=request.reported_user_id,
+        reported_event_id=request.reported_event_id,
+        reported_comment_id=request.reported_comment_id,
+        reason=request.reason,
+        severity=request.severity,
+        status='open',
+        evidence_complete=request.evidence_complete,
+    )
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+    audit.log('create', 'SafetyReport', report.id, new_values=serialize_model(report))
+
+    return (
+        db.query(SafetyReport)
+        .options(*safety_report_load_options())
+        .filter(SafetyReport.id == report.id)
+        .first()
+    )
+
+
+@router.get('/reports/not-open', status_code=200, response_model=List[SafetyReportShow])
+def get_my_not_open_safety_reports(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    reports = (
+        db.query(SafetyReport)
+        .options(*safety_report_load_options())
+        .filter(
+            SafetyReport.reporter_user_id == current_user.id,
+            SafetyReport.status != 'open',
+        )
+        .order_by(SafetyReport.updated_at.desc())
+        .all()
+    )
+    return reports
 
 
 # Create current host user's verification request

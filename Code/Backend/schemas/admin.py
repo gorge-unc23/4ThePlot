@@ -57,6 +57,15 @@ class SafetyReportStatusUpdate(CamelModel):
     reason: str
 
 
+class SafetyReportCreate(CamelModel):
+    reported_user_id: Optional[int] = None
+    reported_event_id: Optional[int] = None
+    reported_comment_id: Optional[int] = None
+    reason: str
+    severity: str = 'medium'
+    evidence_complete: bool = False
+
+
 class SafetyReportShow(CamelModel):
     id: int
     reporter_user_id: Optional[int] = None
