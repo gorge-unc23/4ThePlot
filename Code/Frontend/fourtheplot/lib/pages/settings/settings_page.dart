@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fourtheplot/database_manager.dart';
+import 'package:fourtheplot/models/user.dart';
 import 'package:fourtheplot/pages/landing/landing_page.dart';
+import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:fourtheplot/pages/settings/settings_sub_pages.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -66,13 +68,15 @@ class _SettingsPageState extends State<SettingsPage> {
                       subtitle: 'Trusted status and documents',
                       page: const SettingsVerificationPage(),
                     ),
-                    // _buildDivider(),
-                    // _buildSettingTile(
-                    //   icon: Icons.notifications_none,
-                    //   title: 'Notifications',
-                    //   subtitle: 'Event alerts and reminders',
-                    //   page: const SettingsNotificationsPage(),
-                    // ),
+                    if (MainWrapper.loggedInUser.role != UserRole.admin) ...[
+                      _buildDivider(),
+                      _buildSettingTile(
+                        icon: Icons.campaign_outlined,
+                        title: 'Announcements',
+                        subtitle: 'Platform updates from admins',
+                        page: const SettingsGlobalNotificationsPage(),
+                      ),
+                    ],
                     _buildDivider(),
                     _buildSettingTile(
                       icon: Icons.lock_outline,

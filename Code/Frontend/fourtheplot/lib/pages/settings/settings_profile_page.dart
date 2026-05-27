@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fourtheplot/database_manager.dart';
+import 'package:fourtheplot/models/goer_preferences.dart';
+import 'package:fourtheplot/models/user.dart';
 import 'package:fourtheplot/pages/main_wrapper.dart';
 import 'package:fourtheplot/pages/settings/settings_shared.dart';
 import 'package:image_picker/image_picker.dart';
@@ -19,6 +21,7 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
   late final TextEditingController _nameController;
   late final TextEditingController _emailController;
   late final TextEditingController _phoneController;
+  late final TextEditingController _categoriesController;
   final ImagePicker _picker = ImagePicker();
   XFile? _selectedAvatar;
   String? _avatarUrl;
@@ -33,6 +36,9 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
     _nameController = TextEditingController(text: user.displayName);
     _emailController = TextEditingController(text: user.email);
     _phoneController = TextEditingController(text: user.phone ?? '');
+    _categoriesController = TextEditingController(
+      text: user.goerPreferences?.categories.join(', ') ?? '',
+    );
     _avatarUrl = user.avatarUrl;
   }
 
@@ -48,6 +54,7 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _categoriesController.dispose();
     super.dispose();
   }
 
@@ -82,6 +89,7 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
     }
 
     final current = MainWrapper.loggedInUser;
+    final categories = _splitCategories(_categoriesController.text);
     final payload = {
       'display_name': _nameController.text.trim(),
       'email': _emailController.text.trim(),
@@ -89,6 +97,10 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
           ? null
           : _phoneController.text.trim(),
       'avatar_url': avatarUrl,
+      if (current.role == UserRole.goer)
+        'goer_preferences': {
+          'categories': categories,
+        },
     };
     final updateResult = await DatabaseHelper.instance.updateUser(
       current.id,
@@ -108,6 +120,12 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
           ? null
           : _phoneController.text.trim(),
       avatarUrl: avatarUrl,
+      goerPreferences: current.role == UserRole.goer
+          ? GoerPreferences(
+              categories: categories,
+              updatedAt: DateTime.now(),
+            )
+          : current.goerPreferences,
     );
     await DatabaseHelper.instance.saveUser(updated);
     MainWrapper.loggedInUser = updated;
@@ -161,6 +179,15 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
               required: false,
               keyboardType: TextInputType.phone,
             ),
+            if (MainWrapper.loggedInUser.role == UserRole.goer) ...[
+              const SizedBox(height: 12),
+              _buildField(
+                _categoriesController,
+                'Preferred categories',
+                Icons.interests_outlined,
+                required: false,
+              ),
+            ],
             const SizedBox(height: 18),
             SizedBox(
               width: double.infinity,
@@ -246,6 +273,14 @@ class _SettingsProfilePageState extends State<SettingsProfilePage> {
               value == null || value.trim().isEmpty ? '$label is required' : null
           : null,
     );
+  }
+
+  List<String> _splitCategories(String value) {
+    return value
+        .split(',')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
   }
 }
 

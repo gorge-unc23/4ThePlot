@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/models/event.dart';
 import 'package:fourtheplot/models/user.dart';
+import 'package:fourtheplot/pages/main_wrapper.dart';
+import 'package:fourtheplot/widgets/report_dialog.dart';
 import 'package:intl/intl.dart';
 
 class BusinessProfilePage extends StatefulWidget {
@@ -26,6 +28,7 @@ class _BusinessProfilePageState extends State<BusinessProfilePage> {
   User? _host;
   List<Event> _hostedEvents = const [];
   bool _isLoading = true;
+  bool _isReportingHost = false;
   String? _errorMessage;
 
   @override
@@ -84,6 +87,20 @@ class _BusinessProfilePageState extends State<BusinessProfilePage> {
         backgroundColor: const Color(0xFF0C1021),
         foregroundColor: Colors.white,
         title: Text(_hostName(_host) ?? fallbackTitle),
+        actions: [
+          if (_canReportHost)
+            IconButton(
+              onPressed: _isReportingHost ? null : _handleReportHost,
+              tooltip: 'Report host',
+              icon: _isReportingHost
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.flag_outlined),
+            ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _loadProfile,
@@ -105,6 +122,37 @@ class _BusinessProfilePageState extends State<BusinessProfilePage> {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _handleReportHost() async {
+    final host = _host;
+    if (host == null || _isReportingHost) {
+      return;
+    }
+    final report = await showReportDialog(context, title: 'Report host');
+    if (report == null) {
+      return;
+    }
+
+    setState(() => _isReportingHost = true);
+    final result = await DatabaseHelper.instance.createSafetyReport(
+      reportedUserId: host.id,
+      reason: report.reason,
+      severity: report.severity,
+    );
+    if (!mounted) return;
+    setState(() => _isReportingHost = false);
+    if (!result.success) {
+      _showMessage('Could not submit report: ${result.message}');
+      return;
+    }
+    _showMessage('Report submitted for review.');
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }
 
@@ -462,5 +510,12 @@ class _BusinessProfilePageState extends State<BusinessProfilePage> {
       return parts.first[0].toUpperCase();
     }
     return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
+  }
+
+  bool get _canReportHost {
+    final host = _host;
+    return host != null &&
+        MainWrapper.loggedInUser.role != UserRole.admin &&
+        host.id != MainWrapper.loggedInUser.id;
   }
 }

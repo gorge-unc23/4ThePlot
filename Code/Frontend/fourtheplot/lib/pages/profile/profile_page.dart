@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fourtheplot/database_manager.dart';
+import 'package:fourtheplot/models/admin/admin_models.dart';
 import 'package:fourtheplot/models/event.dart';
 import 'package:fourtheplot/models/user.dart';
 import 'package:fourtheplot/pages/event_details/event_details_page.dart';
@@ -17,6 +18,7 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   List<Event> _hostedEvents = const [];
   List<Event> _upcomingJoinedEvents = const [];
+  List<AdminSafetyReport> _safetyReports = const [];
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -40,6 +42,7 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() {
         _hostedEvents = const [];
         _upcomingJoinedEvents = const [];
+        _safetyReports = const [];
         _isLoading = false;
         _errorMessage = null;
       });
@@ -50,6 +53,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final results = await Future.wait([
       DatabaseHelper.instance.getEventsByHostId(userId),
       DatabaseHelper.instance.getRegisteredEvents(userId),
+      DatabaseHelper.instance.getMyNotOpenSafetyReports(),
     ]);
     if (!mounted) {
       return;
@@ -57,12 +61,15 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final hostedResult = results[0];
     final registeredResult = results[1];
-    if (!hostedResult.success || !registeredResult.success) {
+    final reportsResult = results[2];
+    if (!hostedResult.success || !registeredResult.success || !reportsResult.success) {
       setState(() {
         _isLoading = false;
         _errorMessage = !hostedResult.success
             ? hostedResult.message
-            : registeredResult.message;
+            : !registeredResult.success
+                ? registeredResult.message
+                : reportsResult.message;
       });
       return;
     }
@@ -72,10 +79,14 @@ class _ProfilePageState extends State<ProfilePage> {
     final upcomingJoinedEvents = _eventsFromResult(
       registeredResult,
     ).where((event) => !event.startAt.isBefore(now)).toList()..sort(_sortByStartDate);
+    final safetyReports = (reportsResult.data as List<dynamic>? ?? const [])
+        .whereType<AdminSafetyReport>()
+        .toList();
 
     setState(() {
       _hostedEvents = hostedEvents;
       _upcomingJoinedEvents = upcomingJoinedEvents;
+      _safetyReports = safetyReports;
       _isLoading = false;
     });
   }
@@ -216,6 +227,8 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildSafetyReportsContent(),
+        const SizedBox(height: 20),
         _buildGoerPreferencesContent(),
         const SizedBox(height: 20),
         _buildEventSection(
@@ -234,6 +247,117 @@ class _ProfilePageState extends State<ProfilePage> {
           events: _upcomingJoinedEvents,
         ),
       ],
+    );
+  }
+
+  Widget _buildSafetyReportsContent() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1B1F),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.flag_outlined, color: Color(0xFFFFA44D)),
+              SizedBox(width: 8),
+              Text(
+                'Safety reports',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_safetyReports.isEmpty)
+            Text(
+              'No resolved or reviewed reports yet.',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
+            )
+          else
+            ..._safetyReports.take(5).map(_buildSafetyReportRow),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSafetyReportRow(AdminSafetyReport report) {
+    final target = report.reportedEvent?.title ??
+        report.reportedComment?.text ??
+        report.reportedUser?.displayName ??
+        'Report #${report.id}';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _buildReportChip(report.status, const Color(0xFF22D3EE)),
+              const SizedBox(width: 8),
+              _buildReportChip(report.severity, const Color(0xFFC084FC)),
+              const Spacer(),
+              if (report.updatedAt != null)
+                Text(
+                  DateFormat('MMM d').format(report.updatedAt!),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.45),
+                    fontSize: 12,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            target,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            report.reason,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReportChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label.replaceAll('_', ' '),
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 

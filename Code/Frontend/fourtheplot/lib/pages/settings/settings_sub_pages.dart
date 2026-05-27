@@ -1,4 +1,5 @@
 export 'settings_appearance_language_page.dart';
+export 'settings_global_notifications_page.dart';
 export 'settings_notifications_page.dart';
 export 'settings_privacy_safety_page.dart';
 export 'settings_profile_page.dart';

@@ -17,8 +17,10 @@ import 'package:fourtheplot/widgets/comment_card.dart';
 import 'package:fourtheplot/widgets/glassmorphism.dart';
 import 'package:fourtheplot/widgets/gradient_text.dart';
 import 'package:fourtheplot/widgets/info_card.dart';
+import 'package:fourtheplot/widgets/report_dialog.dart';
 import 'package:fourtheplot/widgets/tag_chip.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 
 class EventDetailsPage extends StatefulWidget {
   final Event event;
@@ -49,7 +51,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
   bool _isLoadingComments = true;
   bool _isSubmittingComment = false;
   bool _isDeletingEvent = false;
+  bool _isReportingEvent = false;
   int? _deletingCommentId;
+  int? _reportingCommentId;
 
   @override
   void initState() {
@@ -387,6 +391,72 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     Navigator.of(context).pop();
   }
 
+  Future<void> _handleReportEvent() async {
+    final eventId = int.tryParse(widget.event.id);
+    if (eventId == null || _isReportingEvent) {
+      return;
+    }
+    final report = await showReportDialog(context, title: 'Report event');
+    if (report == null) {
+      return;
+    }
+
+    setState(() => _isReportingEvent = true);
+    final result = await DatabaseHelper.instance.createSafetyReport(
+      reportedEventId: eventId,
+      reason: report.reason,
+      severity: report.severity,
+    );
+    if (!mounted) return;
+    setState(() => _isReportingEvent = false);
+    if (!result.success) {
+      _showSnackBar('Could not submit report: ${result.message}');
+      return;
+    }
+    _showSnackBar('Report submitted for review.');
+  }
+
+  Future<void> _handleReportComment(Comment comment) async {
+    if (_reportingCommentId != null) {
+      return;
+    }
+    final report = await showReportDialog(context, title: 'Report comment');
+    if (report == null) {
+      return;
+    }
+
+    setState(() => _reportingCommentId = comment.id);
+    final result = await DatabaseHelper.instance.createSafetyReport(
+      reportedCommentId: comment.id,
+      reason: report.reason,
+      severity: report.severity,
+    );
+    if (!mounted) return;
+    setState(() => _reportingCommentId = null);
+    if (!result.success) {
+      _showSnackBar('Could not submit report: ${result.message}');
+      return;
+    }
+    _showSnackBar('Report submitted for review.');
+  }
+
+  Future<void> _handleShareEvent() async {
+    final link = 'http://${DatabaseHelper.instance.serverIp}/events/${widget.event.id}';
+    final text = 'Check out ${widget.event.title}: $link';
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          text: text,
+          title: widget.event.title,
+          subject: widget.event.title,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      _showSnackBar('Could not share event.');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final event = widget.event;
@@ -614,14 +684,30 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        GradientText(
-          event.title,
-          gradient: LinearGradient(colors: [accentBlue, accentPurple]),
-          style: const TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.3,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: GradientText(
+                event.title,
+                gradient: LinearGradient(colors: [accentBlue, accentPurple]),
+                style: const TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: _handleShareEvent,
+              tooltip: 'Share event',
+              icon: const Icon(Icons.ios_share, color: Colors.white),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white.withValues(alpha: 0.08),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         Row(
@@ -905,7 +991,11 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                 return CommentCard(
                   comment: comment,
                   onDelete: _isAdmin ? () => _handleDeleteComment(comment) : null,
+                  onReport: _canReportComment(comment)
+                      ? () => _handleReportComment(comment)
+                      : null,
                   isDeleting: _deletingCommentId == comment.id,
+                  isReporting: _reportingCommentId == comment.id,
                 );
               },
               separatorBuilder: (context, index) => const SizedBox(height: 10),
@@ -1036,6 +1126,15 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           ] else if (widget.event.hostId != MainWrapper.loggedInUser.id.toString()) ...[
             Expanded(
               child: _RegistrationButton(
+                label: _isReportingEvent ? 'Reporting...' : 'Report event',
+                isDestructive: true,
+                isEnabled: !_isReportingEvent,
+                onPressed: _handleReportEvent,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _RegistrationButton(
                 label: _registrationButtonLabel,
                 isDestructive: _registration != null,
                 isEnabled: !_isLoadingRegistration && !_isUpdatingRegistration,
@@ -1094,6 +1193,10 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
   }
 
   bool get _isAdmin => MainWrapper.loggedInUser.role == UserRole.admin;
+
+  bool _canReportComment(Comment comment) {
+    return !_isAdmin && comment.userId != MainWrapper.loggedInUser.id;
+  }
 
   Future<void> _handleJoinPressed() async {
     final joined = await Navigator.of(context).push<bool>(

@@ -5,13 +5,17 @@ import 'package:intl/intl.dart';
 class CommentCard extends StatelessWidget {
   final Comment comment;
   final VoidCallback? onDelete;
+  final VoidCallback? onReport;
   final bool isDeleting;
+  final bool isReporting;
 
   const CommentCard({
     super.key,
     required this.comment,
     this.onDelete,
+    this.onReport,
     this.isDeleting = false,
+    this.isReporting = false,
   });
 
   @override
@@ -81,6 +85,30 @@ class CommentCard extends StatelessWidget {
                             : const Icon(
                                 Icons.delete_outline,
                                 color: Colors.redAccent,
+                                size: 18,
+                              ),
+                      ),
+                    ],
+                    if (onReport != null) ...[
+                      const SizedBox(width: 4),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
+                        padding: EdgeInsets.zero,
+                        onPressed: isReporting ? null : onReport,
+                        tooltip: 'Report comment',
+                        icon: isReporting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(
+                                Icons.flag_outlined,
+                                color: Color(0xFFFACC15),
                                 size: 18,
                               ),
                       ),

@@ -587,6 +587,45 @@ class DatabaseHelper {
     );
   }
 
+  Future<ApiResult> createSafetyReport({
+    int? reportedUserId,
+    int? reportedEventId,
+    int? reportedCommentId,
+    required String reason,
+    required String severity,
+  }) async {
+    final result = await _request(
+      'POST',
+      'user/reports',
+      body: {
+        'reported_user_id': reportedUserId,
+        'reported_event_id': reportedEventId,
+        'reported_comment_id': reportedCommentId,
+        'reason': reason,
+        'severity': severity,
+        'evidence_complete': false,
+      },
+    );
+    if (!result.success || result.data is! Map<String, dynamic>) {
+      return result;
+    }
+    return result.copyWith(
+      data: AdminSafetyReport.fromJson(result.data as Map<String, dynamic>),
+    );
+  }
+
+  Future<ApiResult> getMyNotOpenSafetyReports() async {
+    final result = await _request('GET', 'user/reports/not-open');
+    if (!result.success) {
+      return result;
+    }
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AdminSafetyReport.fromJson)
+        .toList();
+    return result.copyWith(data: list);
+  }
+
   Future<ApiResult> getAdminHostVerifications({String? status}) async {
     final result = await _request(
       'GET',
@@ -722,6 +761,23 @@ class DatabaseHelper {
         .whereType<Map<String, dynamic>>()
         .map(AdminGlobalNotification.fromJson)
         .toList();
+    return result.copyWith(data: list);
+  }
+
+  Future<ApiResult> getGlobalNotifications() async {
+    final result = await _request('GET', 'admin/notifications/public');
+    if (!result.success) return result;
+
+    final list = (result.data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AdminGlobalNotification.fromJson)
+        .toList()
+      ..sort((a, b) {
+        final aDate = a.startsAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.startsAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
+      });
+
     return result.copyWith(data: list);
   }
 
