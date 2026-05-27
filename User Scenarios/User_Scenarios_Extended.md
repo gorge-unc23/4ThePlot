@@ -1,222 +1,401 @@
 # User Scenarios Extended
-*Steps to reach the desired output for each user scenario*
+*Frontend-first steps to reach the desired output for each user scenario*
 
 ---
 
-## Goer / Participant Scenarios
+## Common Scenarios
 
-**GO-01: Follow Preferred Categories**
-1. Goer opens the app and lands on the **Search / Discover Events** screen (bottom nav: Search tab).
-2. Goer taps on their profile initials avatar (top-right corner) to access profile settings.
-3. Goer navigates to the preferences section and browses available categories (e.g., Music, Fitness, Art, Tech).
-4. Goer taps the desired categories to select them.
-5. System saves the preferences and links them to the goer's account.
-6. System updates the **Trending Events** and **Events Near You** sections on the Discover screen to prioritize selected categories.
-7. If no categories are selected: System shows a default mixed feed with a prompt to personalize.
+**UC-COM-01: Register Account**
+1. Visitor opens the landing page and taps **Sign up**.
+2. System shows the multi-step signup form.
+3. Visitor selects Goer or Business and enters account details.
+4. Visitor selects required profile images and role-specific fields.
+5. Visitor reviews the summary and taps **Create account**.
+6. System creates the account, stores the session when available, and opens the role-specific main app.
+7. If validation or upload fails: System keeps entered data visible and shows the error on the current step.
 
-**GO-02: Check Host Credibility**
-1. Goer opens the **Search / Discover Events** screen and browses the Trending Events cards.
-2. Goer taps on an event card (e.g., "Summer Music Festival") to open the event detail page.
-3. Goer taps on the host's name or profile picture within the event detail page.
-4. System displays the host's profile including rating, number of past events, and reviews.
-5. Goer reads through attendee reviews and star ratings.
-6. Goer decides whether to tap the **Join** button on the event card.
-7. If the host has no reviews: System shows a 'New Host' badge with a notice.
+**UC-COM-02: Log In**
+1. Registered user opens the login page.
+2. User enters email and password.
+3. User taps **Log in**.
+4. System validates credentials and stores the session token.
+5. System opens the role-specific main navigation.
+6. If credentials or network access fail: System stays on the login page and shows an error.
 
-**GO-03: Enter Waitlist for Sold-Out Event**
-1. Goer finds an event on the **Discover Events** screen showing a full attendee count badge (e.g., "2K+").
-2. Goer taps the event card to open the event detail page.
-3. System shows the event is at full capacity and displays a **Join Waitlist** button instead of the regular Join button.
-4. Goer taps **Join Waitlist**; system registers the goer's position and sends a confirmation notification.
-5. If a spot opens: System automatically notifies the goer and temporarily reserves the spot.
-6. If the goer doesn't confirm within the time window: System passes the spot to the next person in line.
+**UC-COM-03: View Landing Page Entry Actions**
+1. Visitor opens the app without an active session.
+2. System shows the landing page with Login and Sign up actions.
+3. Visitor taps **Login** or **Sign up**.
+4. System opens the selected page.
+5. If a stored session is available: System can skip the landing page and open the main app.
 
-**GO-04: Use Map for Directions**
-1. Goer taps the **Map** tab in the bottom navigation bar.
-2. System opens the Map screen showing event pins within the current radius (e.g., "2.3 mi radius").
-3. Goer taps an event pin on the map; system displays the event popup card (image, name, attendee count, **View Event** button).
-4. Goer taps **View Event** to open the full event detail page and taps the venue address.
-5. System prompts the goer to choose a navigation app (e.g., Google Maps, Apple Maps).
-6. Selected app opens with the venue pre-filled as the destination.
-7. If location permissions are denied: System shows a prompt requesting location access.
+**UC-COM-04: Edit Profile**
+1. Logged-in user opens Profile from the main navigation.
+2. User opens Settings and taps **Profile**.
+3. System shows editable profile fields and avatar controls.
+4. User updates visible account information and taps **Save**.
+5. System saves the profile and refreshes visible user details.
+6. If saving fails: System keeps the form open and shows an error.
 
-**GO-05: Share Event with Friends**
-1. Goer opens an event card from the **Discover Events** screen or the **Saved Events** list on the Profile screen.
-2. Goer taps the **Share** icon on the event detail page.
-3. System generates a shareable link and displays sharing options (WhatsApp, Instagram, copy link, etc.).
-4. Goer selects a method and sends the link to friends.
-5. Friends receive the link and can open the event page directly in the app.
-6. If the event is private: System only allows sharing with users who have been granted access.
+**UC-COM-05: Change Appearance Settings**
+1. Logged-in user opens Settings.
+2. User taps **Appearance**.
+3. System shows appearance options.
+4. User selects a preferred theme.
+5. System applies the theme and stores the preference.
+6. If storing fails: System keeps the previous preference visible.
 
-**GO-06: Save Event Draft**
-1. Goer taps the **+** or "Create Event" option (accessible from the Profile screen or Discover screen).
-2. Goer fills in partial event details (title, date, description) but is not ready to publish.
-3. Goer taps **Save as Draft** before completing all required fields.
-4. System saves the draft linked to the goer's account and shows a confirmation message.
-5. Goer can return to drafts at any time from the Profile screen to continue editing.
-6. If the session expires: System auto-saves the draft to prevent data loss.
+**UC-COM-06: View Global Notifications**
+1. Goer or business user opens Settings.
+2. User taps **Announcements**.
+3. System loads published global notifications.
+4. User reads titles, messages, and timing details.
+5. If no active announcements exist: System shows an empty state.
+6. If loading fails: System shows an error or retry state.
 
-**GO-07: Limit Event Capacity**
-1. Goer accesses the event creation or editing form from the Profile screen.
-2. Goer navigates to the event settings and finds the **Capacity** field.
-3. Goer enters the maximum number of participants allowed.
-4. System validates the value (must be a positive integer) and saves it.
-5. System enforces the cap during registration; the attendee count badge on the Discover screen updates in real time.
-6. If capacity is reached: System closes new join requests and the Join button changes to reflect the full status.
+---
 
-**GO-08: Broadcast Update to Attendees**
-1. Goer (as event host) navigates to their hosted event via the **Profile** tab (bottom nav).
-2. Goer opens the hosted event and taps **Send Update** or **Broadcast Message**.
-3. Goer types the update message (e.g., a change in time or location).
-4. System previews the message and shows the number of recipients.
-5. Goer confirms the send action.
-6. System delivers a push notification to all joined participants simultaneously.
-7. If no participants have joined yet: System informs the host that there are no recipients available.
+## Goer Scenarios
 
-**GO-09: Set Recurring Schedule**
-1. Goer opens an existing event or creates a new one from the Profile screen.
-2. Goer enables the **Recurring Event** toggle in the event settings.
-3. Goer selects a recurrence pattern (e.g., weekly, bi-weekly, monthly).
-4. Goer sets the end date or total number of occurrences.
-5. System generates all recurring event instances; they appear as separate dots on the **Calendar** screen.
-6. System allows the goer to edit individual occurrences without affecting the full series.
-7. If a conflict exists on a recurring date: System flags it and asks the goer to resolve it.
+**UC-GO-01: Discover Trending Events**
+1. Goer logs in and opens the Discover tab.
+2. System loads the Trending Events section.
+3. Goer scrolls event cards.
+4. Goer taps a card to open event details.
+5. If no trending events are available: System shows a no-events message.
+6. If loading fails: System shows a retry action.
 
-**GO-10: Review Event Performance**
-1. Goer navigates to the **Profile** tab (bottom nav) and opens their hosted event from the events list.
-2. System displays the event's performance metrics: total views, join count, and conversion rate.
-3. Goer filters results by date range or specific event.
-4. Goer compares metrics across events to identify trends.
-5. System visualizes data with graphs or summary cards.
-6. If the event had no views: System shows a zero-state message with tips to improve reach.
+**UC-GO-02: View Nearby Events**
+1. Goer opens Discover.
+2. System asks for location access when needed.
+3. Goer allows location access.
+4. System loads nearby events and shows the list.
+5. Goer taps an event to open details.
+6. If permission is denied or services are unavailable: System shows a clear location message without blocking other discovery content.
+
+**UC-GO-03: Search Events**
+1. Goer taps the search field in Discover.
+2. Goer enters a search term.
+3. Goer submits the search.
+4. System shows matching event results.
+5. Goer taps a result to open details.
+6. If no results are found or loading fails: System shows an empty or retry state.
+
+**UC-GO-04: View Event Details**
+1. Goer taps an event from Discover, Calendar, Map, or host profile.
+2. System opens the event details page.
+3. System shows image, title, status, date, location, host, capacity, categories, tags, comments, and action buttons.
+4. Goer scrolls the page and chooses an action such as join, share, report, comment, or view host.
+5. If secondary data fails to load: System keeps the page visible and shows the affected section error.
+
+**UC-GO-05: View Host Profile**
+1. Goer opens an event details page.
+2. Goer taps the host name or hosted-by link.
+3. System opens the business or host profile page.
+4. System shows host identity, credibility summary, and hosted events.
+5. Goer opens another hosted event or reports the host.
+6. If the profile cannot load: System shows an error or fallback host information.
+
+**UC-GO-06: Join Event**
+1. Goer opens an event details page.
+2. Goer taps **Join event**.
+3. System opens the join confirmation page.
+4. Goer reviews event information and confirms.
+5. System creates the registration and returns to event details.
+6. If capacity or saving fails: System keeps the goer on the join flow and shows the failure.
+
+**UC-GO-07: Unregister From Event**
+1. Goer opens an event they already joined.
+2. System shows the **Unregister** action.
+3. Goer taps **Unregister**.
+4. System removes the registration.
+5. System refreshes the event details page and shows **Join event** again.
+6. If removal fails: System keeps the registered state visible and shows an error.
+
+**UC-GO-08: View Joined Events Calendar**
+1. Goer opens the Calendar tab.
+2. System loads events joined by the user.
+3. System marks dates with event indicators.
+4. Goer selects a date.
+5. System shows joined events for that date and allows opening details.
+6. If there are no joined events: System shows an empty calendar message.
+
+**UC-GO-09: View Events on Map**
+1. Goer opens the Map tab.
+2. System loads visible events with location data.
+3. System displays markers or location cards.
+4. Goer selects an event location.
+5. System opens or previews the selected event.
+6. If events cannot load: System shows an error state.
+
+**UC-GO-10: Add Event Comment**
+1. Goer opens an event details page.
+2. System loads the comments section.
+3. Goer enters a comment in the comment composer.
+4. Goer taps the submit action.
+5. System saves the comment and refreshes the visible list.
+6. If the comment is empty or saving fails: System shows validation or error feedback.
+
+**UC-GO-11: Share Event**
+1. Goer opens an event details page.
+2. Goer taps the share action.
+3. System prepares the event share content.
+4. Device share options appear.
+5. Goer selects a share destination or cancels.
+6. If sharing cannot open: System stays on event details.
+
+**UC-GO-12: Report Event**
+1. Goer opens an event details page.
+2. Goer taps **Report**.
+3. System opens the report dialog.
+4. Goer selects or enters a reason.
+5. System saves the event report and shows confirmation.
+6. If the reason is missing or saving fails: System keeps the dialog open and shows feedback.
+
+**UC-GO-13: Report Comment**
+1. Goer opens an event details page with comments.
+2. Goer opens the action for a specific comment.
+3. Goer chooses **Report**.
+4. System opens the report dialog.
+5. Goer submits a reason and system saves the comment report.
+6. If saving fails: System shows an error and keeps the user on the page.
+
+**UC-GO-14: Report Host**
+1. Goer opens a host profile.
+2. Goer taps the report host action.
+3. System opens the report dialog.
+4. Goer enters a reason.
+5. System saves the host report and shows confirmation.
+6. If the dialog is cancelled: System returns to the host profile unchanged.
+
+**UC-GO-15: Submit Host Verification Request**
+1. Goer opens Settings.
+2. Goer taps the verification option.
+3. System shows existing verification requests and document controls.
+4. Goer creates a request and selects a PDF document.
+5. System uploads the document and attaches it to the request.
+6. If upload or saving fails: System shows the failure and keeps the verification page open.
+
+**UC-GO-16: Delete Host Verification Request**
+1. Goer opens Settings verification.
+2. System loads the user's verification requests.
+3. Goer selects a request to remove.
+4. Goer confirms deletion.
+5. System deletes the request and refreshes the list.
+6. If deletion fails: System keeps the request visible and shows an error.
 
 ---
 
 ## Business Scenarios
 
-**BIZ-01: Promote Event Placement**
-1. Business user logs in and navigates to their event dashboard via the **Profile** tab.
-2. Business selects an event to promote and taps into the **Promote** section.
-3. System displays pricing tiers for different visibility levels (e.g., placement in the Trending Events section on the Discover screen).
-4. Business enters payment details and confirms the purchase.
-5. System boosts the event's position in the **Trending Events** carousel on the Discover screen for the selected duration.
-6. If the payment fails: System notifies the business and keeps the event in its current position.
+**UC-BIZ-01: Create Business Account**
+1. Business user opens signup from the landing page.
+2. User selects the Business role.
+3. User enters account details, profile image, business logo, and business profile fields.
+4. User reviews the signup summary and taps **Create account**.
+5. System creates the account and opens the business navigation.
+6. If validation or upload fails: System shows the error without clearing the entered information.
 
-**BIZ-02: Build Branded Profile**
-1. Business user taps the **Profile** tab in the bottom navigation bar.
-2. Business taps the settings icon (top-right gear icon) to open profile settings.
-3. Business uploads a logo/banner and fills in the brand description.
-4. Business adds website URL and social media links.
-5. System validates the URLs and saves the branded profile.
-6. System displays the branded profile publicly on all hosted event cards.
-7. If the logo dimensions are invalid: System prompts the business to upload a correctly-sized image.
+**UC-BIZ-02: View Hosted Events Tab**
+1. Business user logs in.
+2. User opens the Hosted tab.
+3. System loads hosted events for the account.
+4. User reviews hosted event cards and actions.
+5. If no hosted events exist: System shows an empty state.
+6. If loading fails: System shows a retry option.
 
-**BIZ-03: Capture Leads from Attendees**
-1. Business user opens a hosted event from the **Profile** screen.
-2. Business navigates to the **Lead Capture** settings within the event management panel.
-3. Business sets up a coupon code or downloadable resource for attendees.
-4. System attaches the lead capture form to the event registration flow (triggered when a goer taps **Join**).
-5. Attendees complete the form to receive the offer; system stores the data in the business's leads dashboard.
-6. If an attendee skips the form: System marks the registration as complete but without lead data.
+**UC-BIZ-03: Create Hosted Event**
+1. Business user opens the add event flow.
+2. User enters event details, date, location, capacity, categories, and tags.
+3. User selects event photos.
+4. User reviews the summary.
+5. User taps the create action and system saves the event.
+6. If validation or saving fails: System keeps the form visible and shows feedback.
 
-**BIZ-04: Co-Host with Partners**
-1. Business user opens an event from the **Profile** screen and navigates to the **Co-Hosts** section.
-2. Business searches for a partner account and sends a co-host invitation.
-3. Partner receives a notification and accepts or declines.
-4. If accepted: System displays both brand names on the event card visible on the Discover screen.
-5. If declined: System notifies the business and removes the pending co-host tag.
+**UC-BIZ-04: Upload Event or Profile Images**
+1. Business user opens signup, profile, add event, or edit event image controls.
+2. User selects an image from the picker.
+3. System previews the selected image.
+4. User continues or saves the related form.
+5. System uploads the image and stores the returned URL.
+6. If the upload fails: System shows an upload error and allows retry.
 
-**BIZ-05: Measure Ad Conversion ROI**
-1. Business user opens the **Profile** tab and navigates to the analytics section of their account.
-2. Business selects a promoted event to review.
-3. System displays a report: ad spend, impressions, clicks, and join count.
-4. System calculates the cost-per-join and conversion percentage.
-5. Business downloads or shares the report with the marketing team.
-6. If no ad spend was recorded: System shows organic metrics only with a prompt to start promoting.
+**UC-BIZ-05: Edit Hosted Event**
+1. Business user opens a hosted event.
+2. User taps an edit action.
+3. System opens the edit event form with current values.
+4. User updates event details or images.
+5. User reviews and saves changes.
+6. If saving fails: System keeps the edit form open and shows an error.
 
-**BIZ-06: Save Event Draft**
-1. Business event manager starts creating a new event from the **Profile** screen.
-2. Manager fills in available details and taps **Save as Draft**.
-3. System saves the draft linked to the business account with a last-saved timestamp.
-4. Manager can return to the draft at any time from the Profile screen to finalize and publish.
-5. If a team member tries to edit the same draft simultaneously: System shows a conflict warning.
+**UC-BIZ-06: Delete Hosted Event**
+1. Business user opens a hosted event or hosted event list.
+2. User taps the delete action.
+3. System shows a confirmation dialog.
+4. User confirms deletion.
+5. System deletes the event and refreshes hosted events.
+6. If the user cancels or deletion fails: System keeps the event visible.
 
-**BIZ-07: Control Event Capacity**
-1. Business organizer opens the event creation or editing form from the **Profile** screen.
-2. Organizer enters the maximum number of attendees in the **Capacity** field.
-3. System validates and saves the limit; it is reflected in the attendee count badge on all event cards.
-4. System tracks real-time attendance and compares it against the cap.
-5. When capacity is reached: System blocks new registrations and updates the event status across the Discover and Map screens.
-6. If the organizer increases the cap later: System reopens registration automatically.
+**UC-BIZ-07: View Hosted Events Calendar**
+1. Business user opens the Calendar tab.
+2. System loads events hosted by the business account.
+3. System marks dates with hosted event indicators.
+4. User selects a date.
+5. System shows hosted events for that date.
+6. If no hosted events exist: System shows an empty calendar state.
 
-**BIZ-08: Send Bulk Attendee Notice**
-1. Business organizer opens the event management panel from the **Profile** tab.
-2. Organizer taps **Broadcast Message** and writes the update content.
-3. System shows a preview and the number of registered recipients.
-4. Organizer confirms the send.
-5. System delivers push notifications to all registered attendees.
-6. System logs the broadcast with a timestamp.
-7. If the message contains restricted content: System flags it and requests revision.
+**UC-BIZ-08: Filter Hosted Events by City**
+1. Business user opens the hosted events calendar.
+2. User enters or selects a city filter.
+3. System loads hosted events for that city.
+4. Calendar and event list update to the filtered results.
+5. User clears the filter to return to all hosted events.
+6. If no city results exist: System shows an empty state.
 
-**BIZ-09: Run Recurring Campaign Event**
-1. Business organizer opens a published or draft event from the **Profile** screen.
-2. Organizer enables the **Recurring** option and sets the schedule (monthly, weekly, etc.).
-3. Organizer sets campaign start and end dates.
-4. System creates all future event instances; they appear as individual event dots on the **Calendar** screen for attendees.
-5. System allows the organizer to update individual instances or the entire series.
-6. If a recurring date has a conflict: System alerts the organizer and offers rescheduling.
+**UC-BIZ-09: Promote Hosted Event as Trending**
+1. Business user opens a hosted event or promotion screen.
+2. User selects an event to promote.
+3. System shows the promotion page.
+4. User confirms the action to mark the event as trending.
+5. System saves the trending status and shows confirmation.
+6. If saving fails: System keeps the event unchanged and shows an error.
 
-**BIZ-10: Analyze Post-Event Results**
-1. Business organizer navigates to a completed event via the **Profile** tab.
-2. System displays a post-event report: views, joins, no-shows, and engagement rate.
-3. Organizer compares the event performance against previous campaigns.
-4. System provides improvement recommendations based on performance patterns.
-5. Organizer exports the report as PDF or CSV for internal review.
-6. If no data is available: System shows a placeholder indicating that data is still being processed.
+**UC-BIZ-10: View Business Profile and Hosted Event List**
+1. User opens a business profile from a host link or profile area.
+2. System loads business information.
+3. System loads hosted events for the business.
+4. User reviews profile details and hosted event cards.
+5. User opens an event from the hosted list.
+6. If hosted events cannot load: System shows an empty or error state within the profile.
 
 ---
 
 ## Admin Scenarios
 
-**ADM-01: Process Safety Reports**
-1. Admin logs into the admin dashboard (separate from the goer/business app interface).
-2. Admin navigates to the **Reports** section; system displays flagged content sorted by severity and date.
-3. Admin opens a specific report and reviews the flagged event or user content.
-4. Admin chooses an action: remove content, warn host, or dismiss the report.
-5. System executes the action and updates the report status.
-6. System sends an automated notification to the reporting user about the outcome.
-7. If the flagged content is illegal: System escalates the case to the legal review queue.
+**UC-ADM-01: View Admin Dashboard**
+1. Admin logs in and enters the admin navigation.
+2. System opens the dashboard.
+3. System loads metric summary cards.
+4. Admin reviews dashboard tiles.
+5. Admin taps a tile to open an admin tool.
+6. If metrics fail to load: System shows an error or zero-state card.
 
-**ADM-02: Approve Verified Hosts**
-1. Admin opens the **Verification Requests** panel in the admin dashboard.
-2. System lists all pending host verification submissions with uploaded documents.
-3. Admin reviews each submission including identity and business credentials.
-4. Admin approves or rejects the request with a stated reason.
-5. If approved: System adds a **Verified** badge to the host's profile, visible on all their event cards.
-6. If rejected: System notifies the host with the reason and option to resubmit.
+**UC-ADM-02: View and Manage Events**
+1. Admin opens the Events tab.
+2. System loads all visible events.
+3. Admin reviews event cards and details.
+4. Admin opens an event or action menu.
+5. If no events exist: System shows an empty state.
+6. If loading fails: System shows a retry option.
 
-**ADM-03: Publish Global Notification**
-1. Admin navigates to the **Notifications** section of the admin panel.
-2. Admin taps **Create Global Banner** and writes the message (e.g., scheduled maintenance alert).
-3. Admin sets the display duration and target audience (all users or specific roles).
-4. System previews the banner as it will appear across the app screens.
-5. Admin publishes the notification.
-6. System immediately displays the banner across all active user sessions.
-7. If the admin sets an expiry time: System automatically removes the banner after expiration.
+**UC-ADM-03: Delete Event**
+1. Admin opens an event from the admin events page.
+2. Admin taps the delete action.
+3. System shows a confirmation dialog.
+4. Admin confirms deletion.
+5. System deletes the event and refreshes the list.
+6. If cancelled or failed: System keeps the event visible.
 
-**ADM-04: Review Dispute Evidence**
-1. Admin navigates to the **Disputes** section and opens a pending refund or conflict case.
-2. System presents the goer's complaint alongside the host's response.
-3. Admin reviews the conversation logs between the host and goer.
-4. Admin examines timestamps, messages, and attached evidence (screenshots, receipts).
-5. Admin makes a decision: approve refund, deny refund, or escalate to senior review.
-6. System notifies both parties of the decision.
-7. If the logs are missing or deleted: System flags the case as incomplete and escalates it.
+**UC-ADM-04: Review Safety Reports**
+1. Admin opens Safety Reports.
+2. System loads report cards.
+3. Admin applies status or severity filters.
+4. System refreshes the filtered list.
+5. Admin opens a report detail page.
+6. If no reports match: System shows an empty state.
 
-**ADM-05: Monitor Platform Growth**
-1. Admin opens the **Analytics** dashboard on the admin panel.
-2. System displays daily, weekly, and monthly metrics: active users, new registrations, and new events.
-3. Admin filters data by date range, region, or user role.
-4. System renders graphs and trend lines for visual comparison.
-5. Admin exports the report or pins key metrics for the team.
-6. If a metric shows an unusual drop or spike: System highlights it with an anomaly alert.
+**UC-ADM-05: Apply Moderation Action**
+1. Admin opens a safety report detail page.
+2. Admin selects a moderation action.
+3. System opens a reason dialog.
+4. Admin enters a reason and confirms.
+5. System saves the action and refreshes report details.
+6. If the reason is missing or save fails: System shows validation or error feedback.
+
+**UC-ADM-06: Update Report Status**
+1. Admin opens a report detail page.
+2. Admin chooses a new status.
+3. System asks for a reason when required.
+4. Admin confirms the update.
+5. System saves the status and reloads the detail view.
+6. If cancelled or failed: System keeps the previous status visible.
+
+**UC-ADM-07: Review Host Verification Requests**
+1. Admin opens Host Verification.
+2. System loads verification request cards.
+3. Admin filters requests by status.
+4. System refreshes the filtered list.
+5. Admin selects a request to inspect.
+6. If no requests match: System shows an empty state.
+
+**UC-ADM-08: Review Host Verification Details**
+1. Admin opens a host verification request.
+2. System loads host details, documents, current status, and history.
+3. Admin reviews the visible information.
+4. Admin opens document links where available.
+5. Admin prepares a decision.
+6. If a document is missing or loading fails: System shows a visible warning.
+
+**UC-ADM-09: Approve or Reject Host Verification**
+1. Admin opens verification details.
+2. Admin selects approve, reject, pending, or fraud.
+3. System opens a reason input when required.
+4. Admin submits the decision.
+5. System updates the request and visible trusted state where applicable.
+6. If validation or saving fails: System keeps the detail page open.
+
+**UC-ADM-10: Publish or Edit Global Notification**
+1. Admin opens Notifications.
+2. System loads existing notifications.
+3. Admin taps create or edit.
+4. Admin fills title, message, status, timing, and reason fields.
+5. Admin saves the notification.
+6. If validation or saving fails: System keeps the form open and shows feedback.
+
+**UC-ADM-11: Monitor Platform Metrics**
+1. Admin opens Growth KPIs or Metrics.
+2. System loads overview metrics and daily metrics.
+3. Admin reviews cards, charts, and tables.
+4. Admin changes date filters when available.
+5. System refreshes the displayed metrics.
+6. If data is unavailable: System shows empty or error states.
+
+**UC-ADM-12: Review Disputes**
+1. Admin opens Disputes.
+2. System loads dispute cases.
+3. Admin filters cases by status.
+4. System refreshes the list.
+5. Admin opens a dispute detail page.
+6. If there are no cases: System shows an empty state.
+
+**UC-ADM-13: View Dispute Chat Logs**
+1. Admin opens dispute details.
+2. Admin selects the chat logs section.
+3. System loads visible chat evidence entries.
+4. Admin reviews messages and timestamps.
+5. Admin returns to the dispute details page.
+6. If logs are unavailable: System shows a no-logs or error message.
+
+**UC-ADM-14: Resolve Dispute**
+1. Admin opens a dispute detail page.
+2. Admin chooses a decision and status.
+3. Admin enters a reason.
+4. Admin submits the resolution.
+5. System saves the decision and reloads dispute details.
+6. If required information is missing or saving fails: System shows feedback and keeps the form open.
+
+**UC-ADM-15: View Audit Logs**
+1. Admin opens Audit Logs.
+2. System loads the first page of log entries.
+3. Admin reviews actor, action, model, time, and value fields.
+4. Admin moves to another page.
+5. System loads the selected page.
+6. If logs cannot load: System shows an error state.
+
+**UC-ADM-16: Navigate Admin Tabs**
+1. Admin opens the main admin navigation.
+2. Admin taps Admin, Events, Map, or Profile in the bottom navigation.
+3. System switches to the selected screen.
+4. Admin uses Profile to access account actions.
+5. Admin can log out from Profile.
+6. If a selected screen fails to load: System shows that screen's error state while navigation remains usable.
