@@ -253,7 +253,7 @@ class _SettingsVerificationPageState extends State<SettingsVerificationPage> {
             OutlinedButton.icon(
               onPressed: _isSubmitting ? null : _pickDocument,
               icon: const Icon(Icons.upload_file),
-              label: const Text('Select PDF document'),
+              label: const Text('Choose PDF document'),
             ),
             const SizedBox(height: 12),
             if (_document != null)
