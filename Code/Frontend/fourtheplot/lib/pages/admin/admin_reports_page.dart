@@ -217,7 +217,10 @@ class _AdminReportDetailsPageState extends State<AdminReportDetailsPage> {
   }
 
   Future<void> _applyAction(String action) async {
-    final reason = await showAdminReasonDialog(context, title: 'Apply $action');
+    final reason = await showAdminReasonDialog(
+      context,
+      title: 'Apply ${_actionLabel(action)}',
+    );
     if (reason == null || _report == null) return;
     setState(() => _isSubmitting = true);
     final result = await DatabaseHelper.instance.applyAdminModerationAction(
@@ -324,14 +327,7 @@ class _AdminReportDetailsPageState extends State<AdminReportDetailsPage> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: [
-                  _actionButton('Warn', 'warn_user'),
-                  _actionButton('Suspend user', 'suspend_user'),
-                  _actionButton('Deactivate event', 'deactivate_event'),
-                  _actionButton('Delete comment', 'delete_comment'),
-                  _actionButton('Dismiss', 'dismiss_report'),
-                  _statusButton('Resolve', 'resolved'),
-                ],
+                children: _buildModerationButtons(report),
               ),
             ],
           ),
@@ -352,11 +348,44 @@ class _AdminReportDetailsPageState extends State<AdminReportDetailsPage> {
     );
   }
 
+  List<Widget> _buildModerationButtons(AdminSafetyReport report) {
+    final buttons = <Widget>[];
+
+    if (report.reportedUserId != null) {
+      buttons.add(_actionButton('Warn user', 'warn_user'));
+    }
+    if (report.reportedEventId != null) {
+      buttons.add(_actionButton('Delete event', 'delete_event'));
+    }
+    if (report.reportedCommentId != null) {
+      buttons.add(_actionButton('Delete comment', 'delete_comment'));
+    }
+
+    buttons.add(_actionButton('Dismiss', 'dismiss_report'));
+    buttons.add(_statusButton('Resolve', 'resolved'));
+    return buttons;
+  }
+
   Widget _actionButton(String label, String action) {
     return ElevatedButton(
       onPressed: _isSubmitting ? null : () => _applyAction(action),
       child: Text(label),
     );
+  }
+
+  String _actionLabel(String action) {
+    switch (action) {
+      case 'warn_user':
+        return 'warn user';
+      case 'delete_event':
+        return 'delete event';
+      case 'delete_comment':
+        return 'delete comment';
+      case 'dismiss_report':
+        return 'dismiss report';
+      default:
+        return action.replaceAll('_', ' ');
+    }
   }
 
   Widget _statusButton(String label, String status) {

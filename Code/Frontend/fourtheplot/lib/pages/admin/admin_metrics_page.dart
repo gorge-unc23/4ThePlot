@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:fourtheplot/database_manager.dart';
 import 'package:fourtheplot/models/admin/admin_models.dart';
 import 'package:fourtheplot/pages/admin/admin_widgets.dart';
-import 'package:intl/intl.dart';
 
 class AdminMetricsPage extends StatefulWidget {
   const AdminMetricsPage({super.key});
@@ -105,37 +104,6 @@ class _AdminMetricsPageState extends State<AdminMetricsPage> {
             _metric('Pending reports', overview.pendingReports),
             _metric('Host requests', overview.pendingHostVerifications),
           ],
-        ),
-        const SizedBox(height: 16),
-        AdminSectionCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Daily activity',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 12),
-              if (_daily.isEmpty)
-                Text(
-                  'No daily metrics for this period.',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
-                )
-              else
-                ..._daily.take(14).map((day) {
-                  final date = day.date == null
-                      ? 'Unknown'
-                      : DateFormat('MMM d').format(day.date!);
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 9),
-                    child: Text(
-                      '$date  ·  users ${day.newUsers}  ·  events ${day.newEvents}  ·  regs ${day.registrations}',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.72)),
-                    ),
-                  );
-                }),
-            ],
-          ),
         ),
       ],
     );
